@@ -22,50 +22,38 @@
 
 start
   = text:querytext ';'?      { return "/* group: " + queryDef.group
-                                  + "\n   name: " + queryDef.name
+                                  + "\n   name: "  + queryDef.name
                                   + "\n   notes: " + queryDef.notes
-                                  + "\n" + text }
+                                  + "\n"           + text }
   
 querytext
-  = sqltext
-  / mqlclause
-  / linecomment+  ws* querytext*
-  / BLOCKCOMMENT+ ws* querytext*
-  / sqltext mqlclause querytext*
-  / mqlclause querytext*
+  = sqltext       ws? querytext*
+  / mqlclause     ws? querytext*
+  / linecomment+  ws? querytext*
+  / BLOCKCOMMENT+ ws? querytext*
 
 sqltext
-  = text:([a-zA-Z0-9,/._*=\'\":() \t\n]+)          { return text.join("") }
+  = ws? text:([a-zA-Z0-9,/._*=\'\":()~ \t\n]+)  { return text.join("") }
 
 ws
   = [ \t\n]+
 
 mqlclause
-  = cond:mqlif
-      iftext:querytext
-    mqlelse
-      elsetext:querytext
-    mqlendif                            { return (cond ? iftext : elsetext ) }
-  / cond:mqlif text:querytext mqlendif  { return (cond ? text : "" ) }
-  / value:mqlvalue                      { return value }
-  / literal:mqlliteral                  { return literal }
-
-mqlif
-  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE   { return cond }
-
-mqlelse
-  = MQLOPEN ws? ELSE ws? MQLCLOSE
-
-mqlendif
-  = MQLOPEN ws? ENDIF ws? MQLCLOSE
-
-mqlcondition
-  = not:NOT? ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
-    { var result = false;
-      result = (id in params);
-      if (not === "not") result = !result;
-      return result;
+  = ws? value:mqlvalue                          { return value }
+  / ws? literal:mqlliteral                      { return literal }
+  / ws? ifcond:mqlif iftext:querytext
+    elifcond:(cond:mqlelseif text:querytext)*
+    elsetext:(mqlelse querytext)?
+    mqlendif
+    { if (ifcond) { return iftext }
+      if (elifcond !== null) {
+        for (var i = 0; i < elifcond.length; i++) {
+          if (elifcond[i].cond) { return elifcond[i].text }
+        }
+      }
+      return elsetext
     }
+  / ws? list:mqlforeach querytext? mqlendforeach { return list }
 
 mqlvalue
   = MQLOPEN ws? VALUE ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE { return "val: " + id }
@@ -79,19 +67,54 @@ linecomment
   / notescomment
   / simplelinecomment
 
+mqlif
+  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE           { return cond }
+
+mqlelseif
+  = MQLOPEN ws? ELSEIF ws? cond:mqlcondition ws? MQLCLOSE       { return cond }
+
+mqlelse
+  = MQLOPEN ws? ELSE ws? MQLCLOSE
+
+mqlendif
+  = MQLOPEN ws? ENDIF ws? MQLCLOSE
+
+mqlforeach
+  = MQLOPEN ws? FOREACH ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE { return "foreach: " + id }
+
+mqlendforeach
+  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE
+
+mqlcondition
+  = NOT ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
+    { return ! (id in params) }
+  / EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
+    { return (id in params); }
+  / REEXISTS ws? '(' ws? re:regexp ws? ')'
+    { var prop;
+      for (prop in params) {
+        if (prop.match(re)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  / ISFIRST ws? '(' ws? id:quotedidentifier ws? ')' { return 'isfirst?' }
+  / ISLAST  ws? '(' ws? id:quotedidentifier ws? ')' { return 'islast?'  }
+
 groupcomment
-  = '--' [ \t]* [Gg][Rr][Oo][Uu][Pp] [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.group = id }
+  = ws? '--' [ \t]* [Gg][Rr][Oo][Uu][Pp] [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.group = id }
 
 namecomment
-  = '--' [ \t]* [Nn][Aa][Mm][Ee]     [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.name = id }
+  = ws? '--' [ \t]* [Nn][Aa][Mm][Ee]     [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.name = id }
 
 notescomment
-  = '--' [ \t]* [Nn][Oo][Tt][Ee][Ss] [ \t]* ':'
+  = ws? '--' [ \t]* [Nn][Oo][Tt][Ee][Ss] [ \t]* ':'
     first:linecommenttext '\n'
     rest:simplelinecomment* { queryDef.notes = first.join("") + " " + rest.join(" ") }
 
 simplelinecomment
-  = '--' ws? content:([^\n]*) '\n'      { return content }
+  = ws? '--' ws? content:([^\n]*) '\n'  { return content }
 
 linecommenttext
   = ws? text:([^\n]*)                   { return text }
@@ -100,17 +123,26 @@ quotedidentifier
   = '"' id:identifier '"'               { return id }
   / "'" id:identifier "'"               { return id }
 
-identifier
-  = first:[a-zA-Z_] rest:[a-zA-Z0-9]*          { return first + rest.join("") }
+regexp
+  = "'" str:([^']*) "'"                 { return str.join("") }
+  / '"' str:([^"]*) '"'                 { return str.join("") }
 
-IF      = 'if'
-ENDIF   = 'endif'
-ELSEIF  = 'else'
-VALUE   = 'value'
-LITERAL = 'literal'
-NOT     = 'not'
-EXISTS  = 'exists'
-ELSE    = 'else'
+identifier
+  = first:[a-zA-Z_] rest:[a-zA-Z0-9_]*  { return first + rest.join("") }
+
+VALUE      = 'value'
+LITERAL    = 'literal'
+IF         = 'if'
+ELSEIF     = 'elseif'
+ELSE       = 'else'
+ENDIF      = 'endif'
+NOT        = 'not'
+EXISTS     = 'exists'
+REEXISTS   = 'reExists'
+ISFIRST    = 'isFirst'
+ISLAST     = 'isLast'
+FOREACH    = 'foreach'
+ENDFOREACH = 'endforeach'
 
 BLOCKCOMMENT = '/*' [.*] '*/'               { return "BLOCKCOMMENT" }
 MQLOPEN      = '<?'                         { return "OPEN" }
