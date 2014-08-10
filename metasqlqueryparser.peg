@@ -1,0 +1,117 @@
+/*
+ * Gil Moskowitz, 2014
+ * Parse MetaSQL with pegjs - http://pegjs.majda.cz
+ */
+
+{
+  var params = {
+    asset:        "asset account"
+  , expense:      "expense account"
+  , liability:    "liability account"
+  , equity:       "equity account"
+  , showExternal: true
+//, showInactive: true
+  };
+
+  var queryDef = {
+    group: ""
+  , name: ""
+  , notes: ""
+  };
+}
+
+start
+  = text:querytext ';'?      { return "/* group: " + queryDef.group
+                                  + "\n   name: " + queryDef.name
+                                  + "\n   notes: " + queryDef.notes
+                                  + "\n" + text }
+  
+querytext
+  = sqltext
+  / mqlclause
+  / linecomment+  ws* querytext*
+  / BLOCKCOMMENT+ ws* querytext*
+  / sqltext mqlclause querytext*
+  / mqlclause querytext*
+
+sqltext
+  = text:([a-zA-Z0-9,/._*=\'\":() \t\n]+)          { return text.join("") }
+
+ws
+  = [ \t\n]+
+
+mqlclause
+  = cond:mqlif
+      iftext:querytext
+    mqlelse
+      elsetext:querytext
+    mqlendif                            { return (cond ? iftext : elsetext ) }
+  / cond:mqlif text:querytext mqlendif  { return (cond ? text : "" ) }
+  / value:mqlvalue                      { return value }
+  / literal:mqlliteral                  { return literal }
+
+mqlif
+  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE   { return cond }
+
+mqlelse
+  = MQLOPEN ws? ELSE ws? MQLCLOSE
+
+mqlendif
+  = MQLOPEN ws? ENDIF ws? MQLCLOSE
+
+mqlcondition
+  = not:NOT? ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
+    { var result = false;
+      result = (id in params);
+      if (not === "not") result = !result;
+      return result;
+    }
+
+mqlvalue
+  = MQLOPEN ws? VALUE ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE { return "val: " + id }
+  
+mqlliteral
+  = MQLOPEN ws? LITERAL ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE { return "lit: " + id }
+
+linecomment
+  = groupcomment
+  / namecomment
+  / notescomment
+  / simplelinecomment
+
+groupcomment
+  = '--' [ \t]* [Gg][Rr][Oo][Uu][Pp] [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.group = id }
+
+namecomment
+  = '--' [ \t]* [Nn][Aa][Mm][Ee]     [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.name = id }
+
+notescomment
+  = '--' [ \t]* [Nn][Oo][Tt][Ee][Ss] [ \t]* ':'
+    first:linecommenttext '\n'
+    rest:simplelinecomment* { queryDef.notes = first.join("") + " " + rest.join(" ") }
+
+simplelinecomment
+  = '--' ws? content:([^\n]*) '\n'      { return content }
+
+linecommenttext
+  = ws? text:([^\n]*)                   { return text }
+
+quotedidentifier
+  = '"' id:identifier '"'               { return id }
+  / "'" id:identifier "'"               { return id }
+
+identifier
+  = first:[a-zA-Z_] rest:[a-zA-Z0-9]*          { return first + rest.join("") }
+
+IF      = 'if'
+ENDIF   = 'endif'
+ELSEIF  = 'else'
+VALUE   = 'value'
+LITERAL = 'literal'
+NOT     = 'not'
+EXISTS  = 'exists'
+ELSE    = 'else'
+
+BLOCKCOMMENT = '/*' [.*] '*/'               { return "BLOCKCOMMENT" }
+MQLOPEN      = '<?'                         { return "OPEN" }
+MQLCLOSE     = '?>'                         { return "CLOSE" }
