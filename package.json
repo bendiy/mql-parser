@@ -1,0 +1,20 @@
+{
+  "name":        "mql-parser",
+  "version":     "0.0.1",
+  "description": "A parser for OpenRPT's MetaSQL.",
+  "keywords":    [ "metasql", "openrpt", "query language", "xtuple" ],
+  "homepage":    "http://github.com/gilmoskowitz/mql-parser",
+  "bugs":        "http://github.com/gilmoskowitz/mql-parser/issues",
+  "repository": {
+    "type": "git",
+    "url":  "http://github.com/gilmoskowitz/mql-parser"
+  },
+  "license":     "undecided",
+  "author": { "name":  "Gil Moskowitz",
+              "email": "gilmoskowitz@acm.org"
+            },
+  "files": [ "metasqlqueryparser.peg", "driver.js" ],
+  "main":  "driver.js",
+  "bin":   "./driver.js",
+  "devDependencies": { "pegjs": "*" }
+}
