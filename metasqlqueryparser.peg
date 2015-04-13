@@ -6,6 +6,11 @@
 {
   var params = {
     byCust:       true
+, startDate: '2015-03-01'
+, endDate: '2015-03-31'
+, credit: true
+, isReport: true
+, return: 'foo'
 //, byProdcat:    true
 //, byItem:       true
 //, period_id_list:     [1, 2, 3, 4, 5]
@@ -41,17 +46,17 @@
 
 start
   = text:querytext ';'?
-    { return '/* group: ' + queryDef.group
+    { return '/*\n   group: ' + queryDef.group
          + '\n   name:  ' + queryDef.name
          + '\n   notes: ' + queryDef.notes
          + '\n */\n'      + text + ';'
     }
 
 querytext
-  = t1:sqltext    ws? t2:(querytext*)           { return t1 + ' ' + t2.join(' ') }
-  / t1:mqlclause  ws? t2:(querytext*)           { return t1 + ' ' + t2.join(' ') }
-  / linecomment+  ws? t2:(querytext*)           { return t2.join(' ') }
-  / BLOCKCOMMENT+ ws? t2:(querytext*)           { return t2.join(' ') }
+  = linecomment+  ws? t2:(querytext*)           { return t2.join('') }
+  / t1:sqltext    ws? t2:(querytext*)           { return t1 + t2.join('') }
+  / t1:mqlclause  ws? t2:(querytext*)           { return t1 + t2.join('') }
+  / BLOCKCOMMENT+ ws? t2:(querytext*)           { return t2.join('') }
 
 sqltext
   = ws? text:(sqlpattern) { return text.join('') }
@@ -60,6 +65,7 @@ sqltext
 
 sqlpattern
   = [a-zA-Z0-9,/.\-_*=\'\":()~ \t\n;]+
+
 ws
   = [ \t\n\r]+
 
@@ -81,12 +87,14 @@ mqlclause
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
     mqlendif
-    { if (ifcond) { return iftext }
+    {
+      if (ifcond) { return iftext }
       if (elifcond !== null) {
         for (var i = 0; i < elifcond.length; i++) {
           if (elifcond[i].cond) { return elifcond[i].text }
         }
       }
+      return ''
     }
   / ws? list:mqlforeach querytext? mqlendforeach { return list }
 
@@ -141,22 +149,18 @@ mqlcondition
   / ISLAST  ws? '(' ws? id:quotedidentifier ws? ')' { return 'islast'  }
 
 groupcomment
-  = ws? '--' [ \t]* [Gg][Rr][Oo][Uu][Pp] [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.group = id }
+  = ws? '--' [ \t]? [Gg][Rr][Oo][Uu][Pp] [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.group = id }
 
 namecomment
-  = ws? '--' [ \t]* [Nn][Aa][Mm][Ee]     [ \t]* ':' [ \t] id:identifier [ \t]* '\n' { queryDef.name = id }
+  = ws? '--' [ \t]? [Nn][Aa][Mm][Ee]     [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.name = id }
 
 notescomment
   = ws? '--' [ \t]* [Nn][Oo][Tt][Ee][Ss] [ \t]* ':'
-    first:linecommenttext '\n'
     rest:(simplelinecomment*)
-    { queryDef.notes = first + ' ' + rest.join(' ') }
+    { queryDef.notes = rest.join(' ') }
 
 simplelinecomment
   = ws? '--' ws? content:([^\n]*) '\n'  { return content.join("") }
-
-linecommenttext
-  = ws? str:([^\n]*)                    { return str.join("") }
 
 quotedidentifier
   = '"' id:identifier '"'               { return id }
