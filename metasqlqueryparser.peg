@@ -54,8 +54,12 @@ querytext
   / BLOCKCOMMENT+ ws? t2:(querytext*)           { return t2.join(' ') }
 
 sqltext
-  = ws? text:([a-zA-Z0-9,/.\-_*=\'\":()~ \t\n;]+)  { return text.join('') }
+  = ws? text:(sqlpattern) { return text.join('') }
+  / ws? "<" text:(sqlpattern) { return "<" + text.join('') }
+  / ws? ">" text:(sqlpattern) { return ">" + text.join('') }
 
+sqlpattern
+  = [a-zA-Z0-9,/.\-_*=\'\":()~ \t\n;]+
 ws
   = [ \t\n\r]+
 
