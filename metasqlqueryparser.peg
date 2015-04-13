@@ -57,7 +57,7 @@ sqltext
   = ws? text:([a-zA-Z0-9,/.\-_*=\'\":()~ \t\n;]+)  { return text.join('') }
 
 ws
-  = [ \t\n]+
+  = [ \t\n\r]+
 
 mqlclause
   = ws? value:mqlvalue                          { return value }
