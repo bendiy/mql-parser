@@ -152,7 +152,7 @@ mqlclause
           stackidx = stackIdx(start);
 
       for (var i = 0; i < params[start].length; i++) {
-        result += content.replace(re, params[start][i]) + "\n";
+        result += content.replace(re, params[start][i]);
         loopstack[stackidx].count++;
       }
 
