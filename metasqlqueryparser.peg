@@ -197,9 +197,26 @@ mqlvalue
 
 mqlliteral
   = MQLOPEN ws? LITERAL ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE {
-      var wrap = mqloptions.literalwrap ? '"' : '';
+      var wrap = mqloptions.literalwrap ? '"' : '',
+          stackidx,
+          listidx;
 
-      return (wrap + params[id] + wrap);
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+        stackidx = stackIdx(id);
+        if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+          if (listidx >= params[id].length) {
+            listidx = params[id].length - 1;
+          }
+
+          return (wrap + ':' + id + wrap);
+        }
+        else {
+          return (wrap + ':' + id + wrap);
+        }
+      }
+
+      return (wrap + mqloptions.valuesub ? (params[id]) : (':' + id) + wrap);
     }
 
 linecomment
