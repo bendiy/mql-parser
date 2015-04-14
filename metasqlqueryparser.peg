@@ -23,7 +23,7 @@ TODO:
             //, inventoryUnits:     'DZ'
             //, custgrp:            true
             //, prodcategory:       true
-            //, item_id:            5
+              , item_id:            5
             //, cust_id:            4
             //, custtype_id:        3
             //, custtype_pattern:   'A[lL][lL]'
@@ -43,9 +43,11 @@ TODO:
     , stackIdx = function(id) {
         var idx = 1;
         if (loopstack.length > 0) {
-          for (idx = 0; idx < loopstack.length; idx++)
-            if (loopstack[stackidx].id === id)
+          for (idx = 0; idx < loopstack.length; idx++) {
+            if (loopstack[idx].id === id) {
               break;
+            }
+          }
         }
         return idx;
       }
@@ -64,7 +66,7 @@ start
                  + '\n */\n';
       }
 
-      result += text + ';';
+      result += text;
       return result;
     }
 
@@ -87,8 +89,8 @@ ws
   = [ \t\n\r]+
 
 mqlclause
-  = ws? value:mqlvalue          { return { raw: value,   cooked: value }; }
-  / ws? literal:mqlliteral      { return { raw: literal, cooked: literal}; }
+  = ws? value:mqlvalue          { return value; }
+  / ws? literal:mqlliteral      { return literal; }
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
     mqlelse elsetext:querytext?
@@ -124,38 +126,51 @@ mqlclause
     }
   / ws? start:mqlforeach content:querytext? finish:mqlendforeach
     {
-      var result = start + "[\n";
-      for (var i = 0; i < param[id].length; i++) {
-        result += parse(content.raw) + "\n";
+      var result = '',
+          find = ":" + start;
+          re = new RegExp(find, 'g');
+          stackidx = stackIdx(start);
+      for (var i = 0; i < params[start].length; i++) {
+        result += content.replace(re, params[start][i]) + "\n";
+        loopstack[stackidx].count++;
       }
-      result += "]" + finish;
+      loopstack.shift().id;
+      return result;
     }
 
 mqlvalue
   = MQLOPEN ws? VALUE ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
-   {
-     var stackidx, listidx;
-     if (Object.prototype.toString.call(params[id]) === '[object Array]') {
-       for (stackidx = stackIdx(id); stackidx < loopstack.length; stackidx++) {
-         if (loopstack[stackidx].id === id) {
-           break;
-         }
-       }
-       if (stackidx < loopstack.length) {
-         listidx = loopstack[stackidx].count++;
-         if (listidx >= params[id].length) {
-           listidx = params[id].length - 1;
-         }
-         return mqloptions.valuesub ? ("'" + params[id][listidx] + "'")
-                                    : (':' + id + '__' + listidx);
-       }
-       else {
-         return mqloptions.valuesub ? ("'" + params[id][0] + "'")
-                                    : (':' + id + '__' + 0);
-       }
-     }
-     return mqloptions.valuesub ? ("'" + params[id] + "'") : (':' + id);
-   }
+    {
+      var stackidx, listidx;
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+        stackidx = stackIdx(id);
+        if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+          if (listidx >= params[id].length) {
+            listidx = params[id].length - 1;
+          }
+
+          if (typeof params[id][0] == 'string') {
+            return ("'" + ':' + id + "'");
+          } else {
+            return (':' + id);
+          }
+        }
+        else {
+          if (typeof params[id][0] == 'string') {
+            return ("'" + ':' + id + "'");
+          } else {
+            return (':' + id);
+          }
+        }
+      }
+
+      if (typeof params[id] == 'string') {
+        return mqloptions.valuesub ? ("'" + params[id] + "'") : ("'" + ':' + id + "'");
+      } else {
+        return mqloptions.valuesub ? (params[id]) : (':' + id);
+      }
+    }
 
 mqlliteral
   = MQLOPEN ws? LITERAL ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
@@ -186,7 +201,7 @@ mqlforeach
     { loopstack.unshift({ id: id, count: 0 }); return id; }
 
 mqlendforeach
-  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE { return loopstack.shift().id; }
+  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE { return ''; }
 
 mqlcondition
   = NOT ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
