@@ -1,55 +1,71 @@
-/*
- * Gil Moskowitz, 2014
- * Parse MetaSQL with pegjs - http://pegjs.majda.cz
+/* Gil Moskowitz, 2014
+   Parse MetaSQL with pegjs - http://pegjs.majda.cz
+
+TODO:
+  break
+  continue
  */
 
 {
-  var params = {
-    byCust:       true
-, startDate: '2015-03-01'
-, endDate: '2015-03-31'
-, credit: true
-, isReport: true
-, return: 'foo'
-//, byProdcat:    true
-//, byItem:       true
-//, period_id_list:     [1, 2, 3, 4, 5]
-//, salesDollars:       true
-//, baseCurrAbbr:       'USD'
-//, capacityUnits:      'EA'
-//, altCapacityUnits:   'CS'
-//, inventoryUnits:     'DZ'
-//, custgrp:            true
-//, prodcategory:       true
-//, item_id:            5
-//, cust_id:            4
-//, custtype_id:        3
-//, custtype_pattern:   'A[lL][lL]'
-//, prodcat_id:         2
-//, prodcat_pattern:    '[sS].*[aA]'
-//, custgrp_pattern:    'b'
-//, warehous_id:        1
-  };
-
-  var queryDef = {
-    group: ""
-  , name:  ""
-  , notes: ""
-  };
-
-  var mqloptions = {
-    valuesub: true
-  , literalwrap: true
-  };
-
+  var params = {byCust:       true
+              , startDate: '2015-03-01'
+              , endDate: '2015-03-31'
+              , credit: true
+              , isReport: true
+              , return: 'foo'
+            //, byProdcat:    true
+            //, byItem:       true
+              , period_id_list:     [1, 2, 3, 4, 5]
+            //, salesDollars:       true
+            //, baseCurrAbbr:       'USD'
+            //, capacityUnits:      'EA'
+            //, altCapacityUnits:   'CS'
+            //, inventoryUnits:     'DZ'
+            //, custgrp:            true
+            //, prodcategory:       true
+            //, item_id:            5
+            //, cust_id:            4
+            //, custtype_id:        3
+            //, custtype_pattern:   'A[lL][lL]'
+            //, prodcat_id:         2
+            //, prodcat_pattern:    '[sS].*[aA]'
+            //, custgrp_pattern:    'b'
+            //, warehous_id:        1
+      }
+    , queryDef = {group: ""
+                , name:  ""
+                , notes: ""
+      }
+    , mqloptions = {valuesub:    true
+                  , literalwrap: true
+      }
+    , loopstack = []
+    , stackIdx = function(id) {
+        var idx = 1;
+        if (loopstack.length > 0) {
+          for (idx = 0; idx < loopstack.length; idx++)
+            if (loopstack[stackidx].id === id)
+              break;
+        }
+        return idx;
+      }
+  ;
 }
 
 start
-  = text:querytext ';'?
-    { return '/*\n   group: ' + queryDef.group
-         + '\n   name:  ' + queryDef.name
-         + '\n   notes: ' + queryDef.notes
-         + '\n */\n'      + text + ';'
+  = text:querytext ';'*
+    {
+      var result = '';
+
+      if (queryDef.group && queryDef.name) {
+        result = '/*\n   group: ' + queryDef.group
+                 + '\n   name:  ' + queryDef.name
+                 + '\n   notes: ' + queryDef.notes
+                 + '\n */\n';
+      }
+
+      result += text + ';';
+      return result;
     }
 
 querytext
@@ -59,48 +75,87 @@ querytext
   / BLOCKCOMMENT+ ws? t2:(querytext*)           { return t2.join('') }
 
 sqltext
-  = ws? text:(sqlpattern) { return text.join('') }
-  / ws? "<" text:(sqlpattern) { return "<" + text.join('') }
-  / ws? ">" text:(sqlpattern) { return ">" + text.join('') }
+  = ws? text:(sqlpattern) { return text.join(''); }
+  / ws? "<" text:(sqlpattern) { return "<" + text.join(''); }
+  / ws? ">" text:(sqlpattern) { return ">" + text.join(''); }
+  / ws? "<>" text:(sqlpattern) { return "<>" + text.join(''); }
 
 sqlpattern
-  = [a-zA-Z0-9,/.\-_*=\'\":()~ \t\n;]+
+  = [a-zA-Z0-9,/.\-\+_*=\'\":()~ \t\n;]+
 
 ws
   = [ \t\n\r]+
 
 mqlclause
-  = ws? value:mqlvalue                          { return value }
-  / ws? literal:mqlliteral                      { return literal }
+  = ws? value:mqlvalue          { return { raw: value,   cooked: value }; }
+  / ws? literal:mqlliteral      { return { raw: literal, cooked: literal}; }
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
     mqlelse elsetext:querytext?
     mqlendif
-    { if (ifcond) { return iftext }
+    {
+      if (ifcond) {
+        return iftext;
+      }
       if (elifcond !== null) {
         for (var i = 0; i < elifcond.length; i++) {
-          if (elifcond[i].cond) { return elifcond[i].text }
+          if (elifcond[i].cond) {
+            return elifcond[i].text;
+          }
         }
       }
-      return elsetext
+      return elsetext;
     }
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
     mqlendif
     {
-      if (ifcond) { return iftext }
+      if (ifcond) {
+        return iftext;
+      }
       if (elifcond !== null) {
         for (var i = 0; i < elifcond.length; i++) {
-          if (elifcond[i].cond) { return elifcond[i].text }
+          if (elifcond[i].cond) {
+            return elifcond[i].text;
+          }
         }
       }
-      return ''
+      return '';
     }
-  / ws? list:mqlforeach querytext? mqlendforeach { return list }
+  / ws? start:mqlforeach content:querytext? finish:mqlendforeach
+    {
+      var result = start + "[\n";
+      for (var i = 0; i < param[id].length; i++) {
+        result += parse(content.raw) + "\n";
+      }
+      result += "]" + finish;
+    }
 
 mqlvalue
   = MQLOPEN ws? VALUE ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
-   { return mqloptions.valuesub ? ("'" + params[id] + "'") : (':' + id) }
+   {
+     var stackidx, listidx;
+     if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+       for (stackidx = stackIdx(id); stackidx < loopstack.length; stackidx++) {
+         if (loopstack[stackidx].id === id) {
+           break;
+         }
+       }
+       if (stackidx < loopstack.length) {
+         listidx = loopstack[stackidx].count++;
+         if (listidx >= params[id].length) {
+           listidx = params[id].length - 1;
+         }
+         return mqloptions.valuesub ? ("'" + params[id][listidx] + "'")
+                                    : (':' + id + '__' + listidx);
+       }
+       else {
+         return mqloptions.valuesub ? ("'" + params[id][0] + "'")
+                                    : (':' + id + '__' + 0);
+       }
+     }
+     return mqloptions.valuesub ? ("'" + params[id] + "'") : (':' + id);
+   }
 
 mqlliteral
   = MQLOPEN ws? LITERAL ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
@@ -115,10 +170,10 @@ linecomment
   / simplelinecomment
 
 mqlif
-  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE           { return cond }
+  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE           { return cond; }
 
 mqlelseif
-  = MQLOPEN ws? ELSEIF ws? cond:mqlcondition ws? MQLCLOSE       { return cond }
+  = MQLOPEN ws? ELSEIF ws? cond:mqlcondition ws? MQLCLOSE       { return cond; }
 
 mqlelse
   = MQLOPEN ws? ELSE ws? MQLCLOSE
@@ -127,65 +182,69 @@ mqlendif
   = MQLOPEN ws? ENDIF ws? MQLCLOSE
 
 mqlforeach
-  = MQLOPEN ws? FOREACH ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE { return "foreach: " + id }
+  = MQLOPEN ws? FOREACH ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
+    { loopstack.unshift({ id: id, count: 0 }); return id; }
 
 mqlendforeach
-  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE
+  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE { return loopstack.shift().id; }
 
 mqlcondition
   = NOT ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
-    { return ! (id in params) }
+    { return ! (id in params); }
   / EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
-    { return (id in params) }
+    { return (id in params); }
   / REEXISTS ws? '(' ws? re:regexp ws? ')'
-    { for (var prop in params) {
+    {
+      for (var prop in params) {
         if (prop.match(re)) {
-          return true
+          return true;
         }
       }
-      return false
+      return false;
     }
-  / ISFIRST ws? '(' ws? id:quotedidentifier ws? ')' { return 'isfirst' }
-  / ISLAST  ws? '(' ws? id:quotedidentifier ws? ')' { return 'islast'  }
+  / ISFIRST ws? '(' ws? id:quotedidentifier ws? ')'
+    { return loopstack[stackIdx(id)].count === 0; }
+  / ISLAST  ws? '(' ws? id:quotedidentifier ws? ')'
+    { return loopstack[stackIdx(id)].count >= params[id].length; }
 
 groupcomment
-  = ws? '--' [ \t]? [Gg][Rr][Oo][Uu][Pp] [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.group = id }
+  = ws? '--' [ \t]? [Gg][Rr][Oo][Uu][Pp] [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.group = id; }
 
 namecomment
-  = ws? '--' [ \t]? [Nn][Aa][Mm][Ee]     [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.name = id }
+  = ws? '--' [ \t]? [Nn][Aa][Mm][Ee]     [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.name = id; }
 
 notescomment
-  = ws? '--' [ \t]* [Nn][Oo][Tt][Ee][Ss] [ \t]* ':'
+  = ws? '--' [ \t]? [Nn][Oo][Tt][Ee][Ss] [ \t]? ':' content:([^\n]*)? '\n'
     rest:(simplelinecomment*)
-    { queryDef.notes = rest.join(' ') }
+    { queryDef.notes = rest.join(' '); }
 
 simplelinecomment
-  = ws? '--' ws? content:([^\n]*) '\n'  { return content.join("") }
+  = ws? '--' ws? content:([^\n]*) '\n'  { return content.join(""); }
 
 quotedidentifier
-  = '"' id:identifier '"'               { return id }
-  / "'" id:identifier "'"               { return id }
+  = '"' id:identifier '"'               { return id; }
+  / "'" id:identifier "'"               { return id; }
 
 regexp
-  = "'" str:([^']*) "'"                 { return str.join("") }
-  / '"' str:([^"]*) '"'                 { return str.join("") }
+  = "'" str:([^']*) "'"                 { return str.join(""); }
+  / '"' str:([^"]*) '"'                 { return str.join(""); }
 
 identifier
-  = first:[a-zA-Z_] rest:[a-zA-Z0-9_]*  { return first + rest.join("") }
+  = first:[a-zA-Z_] rest:[a-zA-Z0-9_]*  { return first + rest.join(""); }
 
-VALUE      = 'value'
-LITERAL    = 'literal'
-IF         = 'if'
-ELSEIF     = 'elseif'
-ELSE       = 'else'
-ENDIF      = 'endif'
-NOT        = 'not'
-EXISTS     = 'exists'
-REEXISTS   = 'reExists'
-ISFIRST    = 'isFirst'
-ISLAST     = 'isLast'
-FOREACH    = 'foreach'
-ENDFOREACH = 'endforeach'
+VALUE      = [Vv] [Aa] [Ll] [Uu] [Ee]
+LITERAL    = [Ll] [Ii] [Tt] [Ee] [Rr] [Aa] [Ll]
+IF         = [Ii] [Ff]
+ELSEIF     = [Ee] [Ll] [Ss] [Ee] [Ii] [Ff]
+ELSE       = [Ee] [Ll] [Ss] [Ee]
+ENDIF      = [Ee] [Nn] [Dd] [Ii] [Ff]
+NOT        = [Nn] [Oo] [Tt]
+EXISTS     = [Ee] [Xx] [Ii] [Ss] [Tt] [Ss]
+REEXISTS   = [Rr] [Ee] [Ee] [Xx] [Ii] [Ss] [Tt] [Ss]
+ISFIRST    = [Ii] [Ss] [Ff] [Ii] [Rr] [Ss] [Tt]
+ISLAST     = [Ii] [Ss] [Ll] [Aa] [Ss] [Tt]
+FOREACH    = [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
+ENDFOREACH = [Ee] [Nn] [Dd] [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
 
 BLOCKCOMMENT = '/*' [.*] '*/'
 MQLOPEN      = '<?'
