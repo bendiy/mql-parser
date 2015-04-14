@@ -55,8 +55,7 @@ TODO:
 }
 
 start
-  = text:querytext ';'*
-    {
+  = text:querytext ';'* {
       var result = '';
 
       if (queryDef.group && queryDef.name) {
@@ -71,16 +70,32 @@ start
     }
 
 querytext
-  = linecomment+  ws? t2:(querytext*)           { return t2.join('') }
-  / t1:sqltext    ws? t2:(querytext*)           { return t1 + t2.join('') }
-  / t1:mqlclause  ws? t2:(querytext*)           { return t1 + t2.join('') }
-  / BLOCKCOMMENT+ ws? t2:(querytext*)           { return t2.join('') }
+  = linecomment+  ws? t2:(querytext*) {
+      return t2.join('')
+    }
+  / t1:sqltext    ws? t2:(querytext*) {
+      return t1 + t2.join('')
+    }
+  / t1:mqlclause  ws? t2:(querytext*) {
+      return t1 + t2.join('')
+    }
+  / BLOCKCOMMENT+ ws? t2:(querytext*) {
+      return t2.join('')
+    }
 
 sqltext
-  = ws? text:(sqlpattern) { return text.join(''); }
-  / ws? "<" text:(sqlpattern) { return "<" + text.join(''); }
-  / ws? ">" text:(sqlpattern) { return ">" + text.join(''); }
-  / ws? "<>" text:(sqlpattern) { return "<>" + text.join(''); }
+  = ws? text:(sqlpattern) {
+      return text.join('');
+    }
+  / ws? "<" text:(sqlpattern) {
+      return "<" + text.join('');
+    }
+  / ws? ">" text:(sqlpattern) {
+      return ">" + text.join('');
+    }
+  / ws? "<>" text:(sqlpattern) {
+      return "<>" + text.join('');
+    }
 
 sqlpattern
   = [a-zA-Z0-9,/.\-\+_*=\'\":()~ \t\n;]+
@@ -89,16 +104,20 @@ ws
   = [ \t\n\r]+
 
 mqlclause
-  = ws? value:mqlvalue          { return value; }
-  / ws? literal:mqlliteral      { return literal; }
+  = ws? value:mqlvalue {
+      return value;
+    }
+  / ws? literal:mqlliteral {
+      return literal;
+    }
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
     mqlelse elsetext:querytext?
-    mqlendif
-    {
+    mqlendif {
       if (ifcond) {
         return iftext;
       }
+
       if (elifcond !== null) {
         for (var i = 0; i < elifcond.length; i++) {
           if (elifcond[i].cond) {
@@ -106,15 +125,16 @@ mqlclause
           }
         }
       }
+
       return elsetext;
     }
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
-    mqlendif
-    {
+    mqlendif {
       if (ifcond) {
         return iftext;
       }
+
       if (elifcond !== null) {
         for (var i = 0; i < elifcond.length; i++) {
           if (elifcond[i].cond) {
@@ -122,26 +142,29 @@ mqlclause
           }
         }
       }
+
       return '';
     }
-  / ws? start:mqlforeach content:querytext? finish:mqlendforeach
-    {
+  / ws? start:mqlforeach content:querytext? finish:mqlendforeach {
       var result = '',
-          find = ":" + start;
-          re = new RegExp(find, 'g');
+          find = ":" + start,
+          re = new RegExp(find, 'g'),
           stackidx = stackIdx(start);
+
       for (var i = 0; i < params[start].length; i++) {
         result += content.replace(re, params[start][i]) + "\n";
         loopstack[stackidx].count++;
       }
+
       loopstack.shift().id;
       return result;
     }
 
 mqlvalue
-  = MQLOPEN ws? VALUE ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
-    {
-      var stackidx, listidx;
+  = MQLOPEN ws? VALUE ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE {
+      var stackidx,
+          listidx;
+
       if (Object.prototype.toString.call(params[id]) === '[object Array]') {
         stackidx = stackIdx(id);
         if (stackidx < loopstack.length) {
@@ -173,8 +196,9 @@ mqlvalue
     }
 
 mqlliteral
-  = MQLOPEN ws? LITERAL ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
-    { var wrap = mqloptions.literalwrap ? '"' : '';
+  = MQLOPEN ws? LITERAL ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE {
+      var wrap = mqloptions.literalwrap ? '"' : '';
+
       return (wrap + params[id] + wrap);
     }
 
@@ -185,10 +209,14 @@ linecomment
   / simplelinecomment
 
 mqlif
-  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE           { return cond; }
+  = MQLOPEN ws? IF ws? cond:mqlcondition ws? MQLCLOSE {
+      return cond;
+    }
 
 mqlelseif
-  = MQLOPEN ws? ELSEIF ws? cond:mqlcondition ws? MQLCLOSE       { return cond; }
+  = MQLOPEN ws? ELSEIF ws? cond:mqlcondition ws? MQLCLOSE {
+      return cond;
+    }
 
 mqlelse
   = MQLOPEN ws? ELSE ws? MQLCLOSE
@@ -197,55 +225,79 @@ mqlendif
   = MQLOPEN ws? ENDIF ws? MQLCLOSE
 
 mqlforeach
-  = MQLOPEN ws? FOREACH ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE
-    { loopstack.unshift({ id: id, count: 0 }); return id; }
+  = MQLOPEN ws? FOREACH ws? '(' ws? id:quotedidentifier ws? ')' ws? MQLCLOSE {
+      loopstack.unshift({ id: id, count: 0 }); return id;
+    }
 
 mqlendforeach
-  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE { return ''; }
+  = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE {
+      return '';
+    }
 
 mqlcondition
-  = NOT ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
-    { return ! (id in params); }
-  / EXISTS ws? '(' ws? id:quotedidentifier ws? ')'
-    { return (id in params); }
-  / REEXISTS ws? '(' ws? re:regexp ws? ')'
-    {
+  = NOT ws+ EXISTS ws? '(' ws? id:quotedidentifier ws? ')' {
+      return ! (id in params);
+    }
+  / EXISTS ws? '(' ws? id:quotedidentifier ws? ')' {
+      return (id in params);
+    }
+  / REEXISTS ws? '(' ws? re:regexp ws? ')' {
       for (var prop in params) {
         if (prop.match(re)) {
           return true;
         }
       }
+
       return false;
     }
-  / ISFIRST ws? '(' ws? id:quotedidentifier ws? ')'
-    { return loopstack[stackIdx(id)].count === 0; }
-  / ISLAST  ws? '(' ws? id:quotedidentifier ws? ')'
-    { return loopstack[stackIdx(id)].count >= params[id].length; }
+  / ISFIRST ws? '(' ws? id:quotedidentifier ws? ')' {
+      return loopstack[stackIdx(id)].count === 0;
+    }
+  / ISLAST  ws? '(' ws? id:quotedidentifier ws? ')' {
+      return loopstack[stackIdx(id)].count >= params[id].length;
+    }
 
 groupcomment
-  = ws? '--' [ \t]? [Gg][Rr][Oo][Uu][Pp] [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.group = id; }
+  = ws? '--' [ \t]? [Gg][Rr][Oo][Uu][Pp] [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' {
+      queryDef.group = id;
+    }
 
 namecomment
-  = ws? '--' [ \t]? [Nn][Aa][Mm][Ee]     [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' { queryDef.name = id; }
+  = ws? '--' [ \t]? [Nn][Aa][Mm][Ee]     [ \t]? ':' [ \t]? id:identifier [ \t]? '\n' {
+      queryDef.name = id;
+    }
 
 notescomment
   = ws? '--' [ \t]? [Nn][Oo][Tt][Ee][Ss] [ \t]? ':' content:([^\n]*)? '\n'
-    rest:(simplelinecomment*)
-    { queryDef.notes = rest.join(' '); }
+    rest:(simplelinecomment*) {
+      queryDef.notes = rest.join(' ');
+    }
 
 simplelinecomment
-  = ws? '--' ws? content:([^\n]*) '\n'  { return content.join(""); }
+  = ws? '--' ws? content:([^\n]*) '\n' {
+      return content.join("");
+    }
 
 quotedidentifier
-  = '"' id:identifier '"'               { return id; }
-  / "'" id:identifier "'"               { return id; }
+  = '"' id:identifier '"' {
+      return id;
+    }
+  / "'" id:identifier "'" {
+      return id;
+    }
 
 regexp
-  = "'" str:([^']*) "'"                 { return str.join(""); }
-  / '"' str:([^"]*) '"'                 { return str.join(""); }
+  = "'" str:([^']*) "'" {
+      return str.join("");
+    }
+  / '"' str:([^"]*) '"' {
+      return str.join("");
+    }
 
 identifier
-  = first:[a-zA-Z_] rest:[a-zA-Z0-9_]*  { return first + rest.join(""); }
+  = first:[a-zA-Z_] rest:[a-zA-Z0-9_]* {
+      return first + rest.join("");
+    }
 
 VALUE      = [Vv] [Aa] [Ll] [Uu] [Ee]
 LITERAL    = [Ll] [Ii] [Tt] [Ee] [Rr] [Aa] [Ll]
