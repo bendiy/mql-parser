@@ -1,0 +1,241 @@
+/* Gil Moskowitz, 2014
+   Parse MetaSQL with pegjs - http://pegjs.majda.cz
+
+TODO:
+  break
+  continue
+ */
+
+{
+  params = {
+    start: true
+    ,test_0_1_0: 'test_0_1_0'
+    ,test_0_1_2: ['test_0_1_2']
+    ,test_0_1_3: ['test_0_1_3', 'test_0_1_3_2', 'test_0_1_3_3']
+    ,test_0_1_4: 'true THEN true END AS test_0_1_4) AS tests; SELECT current_user--'
+    ,test_0_2_0: 'test_0_2_0'
+    ,test_0_2_2: ['test_0_2_2']
+    ,test_0_2_3: ['test_0_2_3','test_0_2_3_2', 'test_0_2_3_3']
+    ,test_0_2_4: "(SELECT usr_username FROM usr WHERE usr_username = 'admin')"
+    ,test_0_3_0: true
+    ,test_0_3_2: null
+    ,test_0_3_3: ''
+    ,test_0_3_4: 'true THEN true END AS test_0_3_4) AS test; SELECT current_user--'
+    ,test_0_4_0a: 'test_0_4_0'
+    ,test_0_4_2a: null
+    ,test_0_4_3a: ''
+    ,test_0_4_4a: 'true THEN true END AS test_0_4_4) AS test; SELECT current_user--'
+    ,test_0_5_0: ['test_0_5_0']
+    ,test_0_5_1: ['test_0_5_1','test_0_5_1_2', 'test_0_5_1_3']
+    ,test_0_5_2: 'test_0_5_2'
+    ,test_0_5_4: ['true THEN true END AS test_0_5_4) AS test; SELECT current_user--']
+    ,test_0_6_0: ['test_0_6_0']
+    ,test_0_6_1: ['test_0_6_1','test_0_6_1_2', 'test_0_6_1_3']
+    ,test_0_6_2: 'test_0_6_2'
+    ,test_0_6_4: ['true THEN true END AS test_0_6_4) AS test; SELECT current_user--']
+    ,test_1_1_0: 'test_1_1_0'
+    ,test_2_1_0: 'test_2_1_0'
+    ,test_3_1_0: 'test_3_1_0'
+    ,test_4_0_0: ['test_4_0_0', 'test_4_0_0_2', 'test_4_0_0_3']
+    ,test_4_0_1: ['true THEN true END AS test_4_0_1) AS test; SELECT current_user--']
+    ,test_41_0_0: ['test_41_0_0', 'test_41_0_0_2', 'test_41_0_0_3']
+    ,test_42_0_0: ['test_42_0_0', 'test_42_0_0_2', 'test_42_0_0_3']
+    ,test_43_0_0: ['test_43_0_0', 'test_43_0_0_2', 'test_43_0_0_3']
+    ,test_4_1_0: 'test_4_1_0'
+    ,test_4_1_2: ['test_4_1_2']
+    ,test_4_1_3: ['test_4_1_3', 'test_4_1_3_2', 'test_4_1_3_3']
+    ,test_4_1_4: ['test_4_1_4', 'test_4_1_4_2', 'test_4_1_4_3']
+    ,test_4_1_42: 'test_4_1_42'
+    ,test_4_1_5: ['test_4_1_5', 'test_4_1_5_2', 'test_4_1_5_3']
+    ,test_4_1_52: ['test_4_1_52']
+    ,test_4_1_6: ['test_4_1_6', 'test_4_1_6_2', 'test_4_1_6_3']
+    ,test_4_1_62: ['test_4_1_62', 'test_4_1_62_2', 'test_4_1_62_3']
+    ,test_4_2_0: 'test_4_2_0'
+    ,test_4_2_2: ['test_4_2_2']
+    ,test_4_2_3: ['test_4_2_3', 'test_4_2_3_2', 'test_4_2_3_3']
+    ,test_4_2_4: ['test_4_2_4', 'test_4_2_4_2', 'test_4_2_4_3']
+    ,test_4_2_42: 'test_4_2_42'
+    ,test_4_2_5: ['test_4_2_5', 'test_4_2_5_2', 'test_4_2_5_3']
+    ,test_4_2_52: ['test_4_2_52']
+    ,test_4_2_6: ['test_4_2_6', 'test_4_2_6_2', 'test_4_2_6_3']
+    ,test_4_2_62: ['test_4_2_62', 'test_4_2_62_2', 'test_4_2_62_3']
+    ,test_4_3_0: ['test_4_3_0']
+    ,test_4_3_01: 'test_4_3_01'
+    ,test_4_3_1: ['test_4_3_1']
+    ,test_4_3_2: ['test_4_3_2']
+    ,test_4_3_21: null
+    ,test_4_3_3: ['test_4_3_3']
+    ,test_4_3_31: ''
+    ,test_4_4_0: ['test_4_4_0']
+    ,test_4_4_01: 'test_4_4_01'
+    ,test_4_4_1: ['test_4_4_1']
+    ,test_4_4_2: ['test_4_4_2']
+    ,test_4_4_21: null
+    ,test_4_4_3: ['test_4_4_3']
+    ,test_4_4_31: ''
+    ,test_4_5_0: ['test_4_5_0']
+    ,test_4_5_1: ['test_4_5_1', 'test_4_5_1_2']
+    ,test_4_5_2: ['test_4_5_2', 'test_4_5_2_2']
+    ,test_4_5_3: ['test_4_5_3']
+    ,test_4_5_32: 'test_4_5_32'
+    ,test_4_5_4: ['test_4_5_4']
+    ,test_4_6_0: ['test_4_6_0']
+    ,test_4_6_1: ['test_4_6_1', 'test_4_6_1_2']
+    ,test_4_6_2: ['test_4_6_2', 'test_4_6_2_2']
+    ,test_4_6_3: ['test_4_6_3']
+    ,test_4_6_32: 'test_4_6_32'
+    ,test_4_6_4: ['test_4_6_4']
+    ,test_4_7_0: ['test_4_7_0', 'test_4_7_0_2', 'test_4_7_0_3']
+    ,test_4_8_0: ['test_4_8_0', 'test_4_8_0_2', 'test_4_8_0_3']
+    ,test_44_0_0: ['test_44_0_0', 'test_44_0_0_2']
+    ,test_44_0_02: ['test_44_0_02', 'test_44_0_02_2']
+    ,test_441_0_0: ['test_441_0_0', 'test_441_0_0_2']
+    ,test_441_0_02: ['test_441_0_02', 'test_441_0_02_2']
+    ,test_442_0_0: ['test_442_0_0', 'test_442_0_0_2']
+    ,test_442_0_02: ['test_442_0_02', 'test_442_0_02_2']
+    ,test_443_0_0: ['test_443_0_0', 'test_443_0_0_2', 'test_443_0_0_3']
+    ,test_443_0_02: ['test_443_0_02', 'test_443_0_02_2', 'test_443_0_02_3']
+    ,test_444_0_0: ['test_444_0_0', 'test_444_0_0_2']
+    ,test_444_0_02: ['test_444_0_02', 'test_444_0_01_2']
+    ,test_444_0_03: ['test_444_0_03', 'test_444_0_01_3']
+    ,end: true
+  }
+  , queryDef = {
+      group: ""
+      ,name:  ""
+      ,notes: ""
+    }
+  , mqloptions = {
+      valuesub:    true
+      , literalwrap: true
+    }
+  , loopstack = []
+  , stackIdx = function(id) {
+      var idx = 1;
+      if (loopstack.length > 0) {
+        for (idx = 0; idx < loopstack.length; idx++) {
+          if (loopstack[idx].id === id) {
+            break;
+          }
+        }
+      }
+      return idx;
+    }
+  ;
+
+  function extractList(list, index) {
+    var result = new Array(list.length), i;
+
+    for (i = 0; i < list.length; i++) {
+      result[i] = list[i][index];
+    }
+
+    return result;
+  }
+
+  function buildList(first, rest, index) {
+    return [first].concat(extractList(rest, index));
+  }
+
+  function optionalList(value) {
+    return value !== null ? value : [];
+  }
+}
+
+Start
+  = start:__ metasql:MetaSQL end:__ {
+      return start.join('') + metasql + end.join('');
+    }
+
+/* ----- A.1 Lexical Grammar ----- */
+
+SourceCharacter
+  = .
+
+WhiteSpace "whitespace"
+  = "\t"
+  / "\v"
+  / "\f"
+  / " "
+  / "\u00A0"
+  / "\uFEFF"
+  / Zs
+
+LineTerminator
+  = line:[\n\r\u2028\u2029] {return line + '&'}
+
+LineTerminatorSequence "end of line"
+  = "\n"
+  / "\r\n"
+  / "\r"
+  / "\u2028"
+  / "\u2029"
+
+Comment "comment"
+  = MultiLineComment
+  / SingleLineComment
+
+MultiLineComment
+  = start:"/*" body:(!"*/" SourceCharacter)* end:"*/" {
+      return start + (body ? extractList(body, 1).join('') : '') + end;
+    }
+
+MultiLineCommentNoLineTerminator
+  = start:"/*" body:(!("*/" / LineTerminator) SourceCharacter)* end:"*/" {
+      return start + (body ? extractList(body, 1).join('') : '') + end;
+    }
+
+SingleLineComment
+  = start:"--" body:(!LineTerminator SourceCharacter)* {
+      return start + (body ? extractList(body, 1).join('') : '');
+    }
+
+__
+  = (WhiteSpace / LineTerminatorSequence / Comment)*
+
+_
+  = (WhiteSpace / MultiLineCommentNoLineTerminator)*
+
+MetaSQL
+  = sql:SourceElements? {
+      return optionalList(sql)
+    }
+
+SourceElements
+  = first:SourceElement rest:(__ SourceElement)* {
+      return buildList(first, rest, 1);
+    }
+
+SourceElement
+  = sql:SQLText { return "sql: " + sql}
+  / state:Statement { return "state: " + state}
+
+SQLText
+  = WhiteSpace? text:(!__ SQLPattern) {
+      return (text ? extractList(text, 1).join('') : '');
+    }
+  / WhiteSpace? "<" text:(!__ SQLPattern) {
+      return "<" + (text ? extractList(text, 1).join('') : '');
+    }
+  / WhiteSpace? ">" text:(!__ SQLPattern) {
+      return ">" + (text ? extractList(text, 1).join('') : '');
+    }
+  / WhiteSpace? "<>" text:(!__ SQLPattern) {
+      return "<>" + (text ? extractList(text, 1).join('') : '');
+    }
+
+SQLPattern
+  = [a-zA-Z0-9,/.\-\|\+_*=\'\":()~ \t\n;]+
+
+// Separator, Space
+Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
+
+/* ----- A.4 Statements ----- */
+
+Statement
+  = mo:MQLOPEN ws:WhiteSpace? sql:SQLPattern WhiteSpace? mc:MQLCLOSE {
+    return mo + (ws ? ws : '') + sql.join('') + (ws ? ws : '') + mc;
+  }
+
+MQLOPEN      = '<?'
+MQLCLOSE     = '?>'

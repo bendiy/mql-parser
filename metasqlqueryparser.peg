@@ -7,50 +7,120 @@ TODO:
  */
 
 {
-  var params = {byCust:       true
-              , startDate: '2015-03-01'
-              , endDate: '2015-03-31'
-              , credit: true
-              , isReport: true
-              , return: 'foo'
-            //, byProdcat:    true
-            //, byItem:       true
-              , period_id_list:     [1, 2, 3, 4, 5]
-            //, salesDollars:       true
-            //, baseCurrAbbr:       'USD'
-            //, capacityUnits:      'EA'
-            //, altCapacityUnits:   'CS'
-            //, inventoryUnits:     'DZ'
-            //, custgrp:            true
-            //, prodcategory:       true
-              , item_id:            5
-            //, cust_id:            4
-            //, custtype_id:        3
-            //, custtype_pattern:   'A[lL][lL]'
-            //, prodcat_id:         2
-            //, prodcat_pattern:    '[sS].*[aA]'
-            //, custgrp_pattern:    'b'
-            //, warehous_id:        1
-      }
-    , queryDef = {group: ""
-                , name:  ""
-                , notes: ""
-      }
-    , mqloptions = {valuesub:    true
-                  , literalwrap: true
-      }
-    , loopstack = []
-    , stackIdx = function(id) {
-        var idx = 1;
-        if (loopstack.length > 0) {
-          for (idx = 0; idx < loopstack.length; idx++) {
-            if (loopstack[idx].id === id) {
-              break;
-            }
+  params = {
+    start: true
+    ,test_0_1_0: 'test_0_1_0'
+    ,test_0_1_2: ['test_0_1_2']
+    ,test_0_1_3: ['test_0_1_3', 'test_0_1_3_2', 'test_0_1_3_3']
+    ,test_0_1_4: 'true THEN true END AS test_0_1_4) AS tests; SELECT current_user--'
+    ,test_0_2_0: 'test_0_2_0'
+    ,test_0_2_2: ['test_0_2_2']
+    ,test_0_2_3: ['test_0_2_3','test_0_2_3_2', 'test_0_2_3_3']
+    ,test_0_2_4: "(SELECT usr_username FROM usr WHERE usr_username = 'admin')"
+    ,test_0_3_0: true
+    ,test_0_3_2: null
+    ,test_0_3_3: ''
+    ,test_0_3_4: 'true THEN true END AS test_0_3_4) AS test; SELECT current_user--'
+    ,test_0_4_0a: 'test_0_4_0'
+    ,test_0_4_2a: null
+    ,test_0_4_3a: ''
+    ,test_0_4_4a: 'true THEN true END AS test_0_4_4) AS test; SELECT current_user--'
+    ,test_0_5_0: ['test_0_5_0']
+    ,test_0_5_1: ['test_0_5_1','test_0_5_1_2', 'test_0_5_1_3']
+    ,test_0_5_2: 'test_0_5_2'
+    ,test_0_5_4: ['true THEN true END AS test_0_5_4) AS test; SELECT current_user--']
+    ,test_0_6_0: ['test_0_6_0']
+    ,test_0_6_1: ['test_0_6_1','test_0_6_1_2', 'test_0_6_1_3']
+    ,test_0_6_2: 'test_0_6_2'
+    ,test_0_6_4: ['true THEN true END AS test_0_6_4) AS test; SELECT current_user--']
+    ,test_1_1_0: 'test_1_1_0'
+    ,test_2_1_0: 'test_2_1_0'
+    ,test_3_1_0: 'test_3_1_0'
+    ,test_4_0_0: ['test_4_0_0', 'test_4_0_0_2', 'test_4_0_0_3']
+    ,test_4_0_1: ['true THEN true END AS test_4_0_1) AS test; SELECT current_user--']
+    ,test_41_0_0: ['test_41_0_0', 'test_41_0_0_2', 'test_41_0_0_3']
+    ,test_42_0_0: ['test_42_0_0', 'test_42_0_0_2', 'test_42_0_0_3']
+    ,test_43_0_0: ['test_43_0_0', 'test_43_0_0_2', 'test_43_0_0_3']
+    ,test_4_1_0: 'test_4_1_0'
+    ,test_4_1_2: ['test_4_1_2']
+    ,test_4_1_3: ['test_4_1_3', 'test_4_1_3_2', 'test_4_1_3_3']
+    ,test_4_1_4: ['test_4_1_4', 'test_4_1_4_2', 'test_4_1_4_3']
+    ,test_4_1_42: 'test_4_1_42'
+    ,test_4_1_5: ['test_4_1_5', 'test_4_1_5_2', 'test_4_1_5_3']
+    ,test_4_1_52: ['test_4_1_52']
+    ,test_4_1_6: ['test_4_1_6', 'test_4_1_6_2', 'test_4_1_6_3']
+    ,test_4_1_62: ['test_4_1_62', 'test_4_1_62_2', 'test_4_1_62_3']
+    ,test_4_2_0: 'test_4_2_0'
+    ,test_4_2_2: ['test_4_2_2']
+    ,test_4_2_3: ['test_4_2_3', 'test_4_2_3_2', 'test_4_2_3_3']
+    ,test_4_2_4: ['test_4_2_4', 'test_4_2_4_2', 'test_4_2_4_3']
+    ,test_4_2_42: 'test_4_2_42'
+    ,test_4_2_5: ['test_4_2_5', 'test_4_2_5_2', 'test_4_2_5_3']
+    ,test_4_2_52: ['test_4_2_52']
+    ,test_4_2_6: ['test_4_2_6', 'test_4_2_6_2', 'test_4_2_6_3']
+    ,test_4_2_62: ['test_4_2_62', 'test_4_2_62_2', 'test_4_2_62_3']
+    ,test_4_3_0: ['test_4_3_0']
+    ,test_4_3_01: 'test_4_3_01'
+    ,test_4_3_1: ['test_4_3_1']
+    ,test_4_3_2: ['test_4_3_2']
+    ,test_4_3_21: null
+    ,test_4_3_3: ['test_4_3_3']
+    ,test_4_3_31: ''
+    ,test_4_4_0: ['test_4_4_0']
+    ,test_4_4_01: 'test_4_4_01'
+    ,test_4_4_1: ['test_4_4_1']
+    ,test_4_4_2: ['test_4_4_2']
+    ,test_4_4_21: null
+    ,test_4_4_3: ['test_4_4_3']
+    ,test_4_4_31: ''
+    ,test_4_5_0: ['test_4_5_0']
+    ,test_4_5_1: ['test_4_5_1', 'test_4_5_1_2']
+    ,test_4_5_2: ['test_4_5_2', 'test_4_5_2_2']
+    ,test_4_5_3: ['test_4_5_3']
+    ,test_4_5_32: 'test_4_5_32'
+    ,test_4_5_4: ['test_4_5_4']
+    ,test_4_6_0: ['test_4_6_0']
+    ,test_4_6_1: ['test_4_6_1', 'test_4_6_1_2']
+    ,test_4_6_2: ['test_4_6_2', 'test_4_6_2_2']
+    ,test_4_6_3: ['test_4_6_3']
+    ,test_4_6_32: 'test_4_6_32'
+    ,test_4_6_4: ['test_4_6_4']
+    ,test_4_7_0: ['test_4_7_0', 'test_4_7_0_2', 'test_4_7_0_3']
+    ,test_4_8_0: ['test_4_8_0', 'test_4_8_0_2', 'test_4_8_0_3']
+    ,test_44_0_0: ['test_44_0_0', 'test_44_0_0_2']
+    ,test_44_0_02: ['test_44_0_02', 'test_44_0_02_2']
+    ,test_441_0_0: ['test_441_0_0', 'test_441_0_0_2']
+    ,test_441_0_02: ['test_441_0_02', 'test_441_0_02_2']
+    ,test_442_0_0: ['test_442_0_0', 'test_442_0_0_2']
+    ,test_442_0_02: ['test_442_0_02', 'test_442_0_02_2']
+    ,test_443_0_0: ['test_443_0_0', 'test_443_0_0_2', 'test_443_0_0_3']
+    ,test_443_0_02: ['test_443_0_02', 'test_443_0_02_2', 'test_443_0_02_3']
+    ,test_444_0_0: ['test_444_0_0', 'test_444_0_0_2']
+    ,test_444_0_02: ['test_444_0_02', 'test_444_0_01_2']
+    ,test_444_0_03: ['test_444_0_03', 'test_444_0_01_3']
+    ,end: true
+  }
+  , queryDef = {
+      group: ""
+      ,name:  ""
+      ,notes: ""
+    }
+  , mqloptions = {
+      valuesub:    true
+      , literalwrap: true
+    }
+  , loopstack = []
+  , stackIdx = function(id) {
+      var idx = 1;
+      if (loopstack.length > 0) {
+        for (idx = 0; idx < loopstack.length; idx++) {
+          if (loopstack[idx].id === id) {
+            break;
           }
         }
-        return idx;
       }
+      return idx;
+    }
   ;
 }
 
@@ -73,14 +143,14 @@ querytext
   = linecomment+  ws? t2:(querytext*) {
       return t2.join('')
     }
+  / MultiLineComment+ ws? t2:(querytext*) {
+      return t2.join('')
+    }
   / t1:sqltext    ws? t2:(querytext*) {
       return t1 + t2.join('')
     }
   / t1:mqlclause  ws? t2:(querytext*) {
       return t1 + t2.join('')
-    }
-  / BLOCKCOMMENT+ ws? t2:(querytext*) {
-      return t2.join('')
     }
 
 sqltext
@@ -98,7 +168,7 @@ sqltext
     }
 
 sqlpattern
-  = [a-zA-Z0-9,/.\-\+_*=\'\":()~ \t\n;]+
+  = [a-zA-Z0-9,/.\-\|\+_*=\'\":()~ \t\n;]+
 
 ws
   = [ \t\n\r]+
@@ -109,6 +179,9 @@ mqlclause
     }
   / ws? literal:mqlliteral {
       return literal;
+    }
+  / ws? cond:mqlrawmqlcondition {
+      return cond;
     }
   / ws? ifcond:mqlif iftext:querytext
     elifcond:(cond:mqlelseif text:querytext)*
@@ -189,9 +262,9 @@ mqlvalue
       }
 
       if (typeof params[id] == 'string') {
-        return mqloptions.valuesub ? ("'" + params[id] + "'") : ("'" + ':' + id + "'");
+        return mqloptions.valuesub ? ("'" + (params[id] ? params[id] : 'NULL ') + "'") : ("'" + ':' + id + "'");
       } else {
-        return mqloptions.valuesub ? (params[id]) : (':' + id);
+        return mqloptions.valuesub ? (params[id] ? params[id] : 'NULL ') : (':' + id);
       }
     }
 
@@ -216,7 +289,7 @@ mqlliteral
         }
       }
 
-      return (wrap + mqloptions.valuesub ? (params[id]) : (':' + id) + wrap);
+      return (wrap + mqloptions.valuesub ? (params[id] ? params[id] : '') : (':' + id) + wrap);
     }
 
 linecomment
@@ -249,6 +322,11 @@ mqlforeach
 mqlendforeach
   = MQLOPEN ws? ENDFOREACH ws? MQLCLOSE {
       return '';
+    }
+
+mqlrawmqlcondition
+  = MQLOPEN ws? cond:mqlcondition ws? MQLCLOSE {
+      return cond;
     }
 
 mqlcondition
@@ -330,6 +408,12 @@ ISLAST     = [Ii] [Ss] [Ll] [Aa] [Ss] [Tt]
 FOREACH    = [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
 ENDFOREACH = [Ee] [Nn] [Dd] [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
 
-BLOCKCOMMENT = '/*' [.*] '*/'
+MultiLineComment
+  = "/*" (!"*/" SourceCharacter)* "*/"
+
+SourceCharacter
+  = .
+
+BLOCKCOMMENT = '/*' [.*\t\n\r]+ '*/'
 MQLOPEN      = '<?'
 MQLCLOSE     = '?>'
