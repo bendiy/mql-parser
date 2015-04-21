@@ -190,6 +190,78 @@ SingleLineComment
       return start + (body ? extractList(body, 1).join('') : '');
     }
 
+QuotedString "quoted string"
+  = SingleQuotedString
+  / DoubleQuotedString
+
+SingleQuotedString
+  = start:"'" body:SingleStringCharacter* end:"'" {
+    return start + (body ? extractList(body, 1).join('') : '') + end;
+  }
+
+DoubleQuotedString
+  = start:'"' body:DoubleStringCharacter* end:'"' {
+    return start + (body ? extractList(body, 1).join('') : '') + end;
+  }
+
+DecimalDigit
+  = [0-9]
+
+HexDigit
+  = [0-9a-f]i
+
+DoubleStringCharacter
+  = !('"' / "\\" / LineTerminator) SourceCharacter { return text(); }
+  / "\\" sequence:EscapeSequence { return sequence; }
+  / LineContinuation
+
+SingleStringCharacter
+  = !("'" / "\\" / LineTerminator) SourceCharacter { return text(); }
+  / "\\" sequence:EscapeSequence { return sequence; }
+  / LineContinuation
+
+LineContinuation
+  = "\\" LineTerminatorSequence { return ""; }
+
+EscapeSequence
+  = CharacterEscapeSequence
+  / "0" !DecimalDigit { return "\0"; }
+  / HexEscapeSequence
+  / UnicodeEscapeSequence
+
+CharacterEscapeSequence
+  = SingleEscapeCharacter
+  / NonEscapeCharacter
+
+SingleEscapeCharacter
+  = "'"
+  / '"'
+  / "\\"
+  / "b"  { return "\b";   }
+  / "f"  { return "\f";   }
+  / "n"  { return "\n";   }
+  / "r"  { return "\r";   }
+  / "t"  { return "\t";   }
+  / "v"  { return "\x0B"; }   // IE does not recognize "\v".
+
+NonEscapeCharacter
+  = !(EscapeCharacter / LineTerminator) SourceCharacter { return text(); }
+
+EscapeCharacter
+  = SingleEscapeCharacter
+  / DecimalDigit
+  / "x"
+  / "u"
+
+HexEscapeSequence
+  = "x" digits:$(HexDigit HexDigit) {
+      return String.fromCharCode(parseInt(digits, 16));
+    }
+
+UnicodeEscapeSequence
+  = "u" digits:$(HexDigit HexDigit HexDigit HexDigit) {
+      return String.fromCharCode(parseInt(digits, 16));
+    }
 __
   = (WhiteSpace / LineTerminatorSequence / Comment)*
 
@@ -198,33 +270,31 @@ _
 
 MetaSQL
   = sql:SourceElements? {
-      return optionalList(sql)
+      return sql
     }
 
 SourceElements
-  = first:SourceElement rest:(__ SourceElement)* {
-      return buildList(first, rest, 1);
+  = first:(SourceElement) rest:(SourceElement)* {
+      return first + rest.join('');
     }
 
 SourceElement
-  = sql:SQLText { return "sql: " + sql}
-  / state:Statement { return "state: " + state}
+  = quoted:QuotedString { return "quoted: " + quoted; }
+  / comment:Comment { return "comment: " + comment; }
+  / state:Statement { return "state: " + state; }
+  / sql:SQLText { return sql; }
 
 SQLText
-  = WhiteSpace? text:(!__ SQLPattern) {
-      return (text ? extractList(text, 1).join('') : '');
-    }
-  / WhiteSpace? "<" text:(!__ SQLPattern) {
-      return "<" + (text ? extractList(text, 1).join('') : '');
-    }
-  / WhiteSpace? ">" text:(!__ SQLPattern) {
-      return ">" + (text ? extractList(text, 1).join('') : '');
-    }
-  / WhiteSpace? "<>" text:(!__ SQLPattern) {
-      return "<>" + (text ? extractList(text, 1).join('') : '');
+  = text:(SQLPattern) {
+      return (text ? text : '');
     }
 
 SQLPattern
+  = body:SourceCharacter {
+      return (body ? body : '');
+    }
+
+SQLPattern2
   = [a-zA-Z0-9,/.\-\|\+_*=\'\":()~ \t\n;]+
 
 // Separator, Space
@@ -233,8 +303,8 @@ Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
 /* ----- A.4 Statements ----- */
 
 Statement
-  = mo:MQLOPEN ws:WhiteSpace? sql:SQLPattern WhiteSpace? mc:MQLCLOSE {
-    return mo + (ws ? ws : '') + sql.join('') + (ws ? ws : '') + mc;
+  = start:MQLOPEN body:(!MQLCLOSE SourceCharacter)* end:MQLCLOSE {
+    return start + (body ? extractList(body, 1).join('') : '') + end;
   }
 
 MQLOPEN      = '<?'
