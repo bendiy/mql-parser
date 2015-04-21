@@ -336,6 +336,7 @@ Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
 Statement
   = MQLValue
   / MQLLiteral
+  / MQLLoopControl
   / MQLRawMQLCondition
   / MQLGeneric
 
@@ -435,6 +436,32 @@ MQLEndForeach
       return '';
     }
 
+MQLLoopControl
+  = MQLOpen WhiteSpace? loop:MQLLoopFunction WhiteSpace? MQLClose {
+      return loop;
+    }
+
+MQLLoopFunction
+  = Continue WhiteSpace? loop:(MQLLoopCount)? {
+      // TODO: Figure out what the passed loop count is.
+      // TODO: Figure out where we are in the loop.
+      // TODO: Continue logic.
+      loop = loop || 1;
+      return '';
+    }
+  / Break WhiteSpace? loop:(MQLLoopCount)? {
+      // TODO: Figure out what the passed loop count is.
+      // TODO: Figure out where we are in the loop.
+      // TODO: Break logic.
+      loop = loop || 1;
+      return '';
+    }
+
+MQLLoopCount
+  = '(' WhiteSpace? loop:DecimalDigit* WhiteSpace? ')' {
+      return loop;
+    }
+
 MQLRawMQLCondition
   = MQLOpen WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
       return cond;
@@ -521,3 +548,5 @@ IsFirst    = [Ii] [Ss] [Ff] [Ii] [Rr] [Ss] [Tt]
 IsLast     = [Ii] [Ss] [Ll] [Aa] [Ss] [Tt]
 Foreach    = [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
 EndForeach = [Ee] [Nn] [Dd] [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
+Continue   = [Cc] [Oo] [Nn] [Tt] [Ii] [Nn] [Uu] [Ee]
+Break      = [Bb] [Rr] [Ee] [Aa] [Kk]
