@@ -171,6 +171,15 @@ LineTerminatorSequence "end of line"
   / "\u2028"
   / "\u2029"
 
+
+RegExp
+  = "'" str:([^']*) "'" {
+      return str.join("");
+    }
+  / '"' str:([^"]*) '"' {
+      return str.join("");
+    }
+
 Comment "comment"
   = MultiLineComment
   / SingleLineComment
@@ -190,18 +199,32 @@ SingleLineComment
       return start + (body ? extractList(body, 1).join('') : '');
     }
 
+QuotedIdentifier "quoted identifier"
+  = SingleQuotedIdentifier
+  / DoubleQuotedIdentifier
+
+SingleQuotedIdentifier
+  = start:"'" body:SingleStringCharacter* end:"'" {
+    return (body ? body.join('') : '');
+  }
+
+DoubleQuotedIdentifier
+  = start:'"' body:DoubleStringCharacter* end:'"' {
+    return (body ? body.join('') : '');
+  }
+
 QuotedString "quoted string"
   = SingleQuotedString
   / DoubleQuotedString
 
 SingleQuotedString
   = start:"'" body:SingleStringCharacter* end:"'" {
-    return start + (body ? extractList(body, 1).join('') : '') + end;
+    return start + (body ? body.join('') : '') + end;
   }
 
 DoubleQuotedString
   = start:'"' body:DoubleStringCharacter* end:'"' {
-    return start + (body ? extractList(body, 1).join('') : '') + end;
+    return start + (body ? body.join('') : '') + end;
   }
 
 DecimalDigit
@@ -279,10 +302,21 @@ SourceElements
     }
 
 SourceElement
-  = quoted:QuotedString { return "quoted: " + quoted; }
-  / comment:Comment { return "comment: " + comment; }
-  / state:Statement { return "state: " + state; }
-  / sql:SQLText { return sql; }
+  = quoted:QuotedString {
+      //return "quoted: " + quoted;
+      return quoted;
+    }
+  / comment:Comment {
+      //return "comment: " + comment;
+      return comment;
+    }
+  / state:Statement {
+      //return "state: " + state;
+      return state;
+    }
+  / sql:SQLText {
+      return sql;
+    }
 
 SQLText
   = text:(SQLPattern) {
@@ -294,18 +328,196 @@ SQLPattern
       return (body ? body : '');
     }
 
-SQLPattern2
-  = [a-zA-Z0-9,/.\-\|\+_*=\'\":()~ \t\n;]+
-
 // Separator, Space
 Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
 
 /* ----- A.4 Statements ----- */
 
 Statement
-  = start:MQLOPEN body:(!MQLCLOSE SourceCharacter)* end:MQLCLOSE {
+  = MQLValue
+  / MQLLiteral
+  / MQLRawMQLCondition
+  / MQLGeneric
+
+MQLGeneric
+  = start:MQLOpen body:(!MQLClose SourceCharacter)* end:MQLClose {
     return start + (body ? extractList(body, 1).join('') : '') + end;
   }
 
-MQLOPEN      = '<?'
-MQLCLOSE     = '?>'
+MQLValue
+  = MQLOpen WhiteSpace? Value WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
+      var stackidx,
+          listidx;
+
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+        stackidx = stackIdx(id);
+
+        //return "MQLValue id: " + id + " stackidx: " + stackidx;
+        if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+          if (listidx >= params[id].length) {
+            listidx = params[id].length - 1;
+          }
+
+          if (typeof params[id][0] == 'string') {
+            return ("'" + ':' + id + "'");
+          } else {
+            return (':' + id);
+          }
+        }
+        else {
+          if (typeof params[id][0] == 'string') {
+            return "'" + params[id][0] + "'";
+            //return ("'" + ':' + id + "'");
+          } else {
+            return (':' + id);
+          }
+        }
+      }
+
+      if (typeof params[id] == 'string') {
+        return mqloptions.valuesub ? ("'" + (params[id] ? params[id] : 'NULL ') + "'") : ("'" + ':' + id + "'");
+      } else {
+        return mqloptions.valuesub ? (params[id] ? params[id] : 'NULL ') : (':' + id);
+      }
+    }
+
+MQLLiteral
+  = MQLOpen WhiteSpace? Literal WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
+      var wrap = mqloptions.literalwrap ? '"' : '',
+          stackidx,
+          listidx;
+
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+        stackidx = stackIdx(id);
+
+        //return "MQLLiteral id: " + id + " stackidx: " + stackidx;
+        if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+          if (listidx >= params[id].length) {
+            listidx = params[id].length - 1;
+          }
+
+          return (wrap + ':' + id + wrap);
+        }
+        else {
+          return (wrap + id + wrap);
+          //return (wrap + ':' + id + wrap);
+        }
+      }
+
+      return (wrap + mqloptions.valuesub ? (params[id] ? params[id] : '') : (':' + id) + wrap);
+    }
+
+MQLIf
+  = MQLOpen WhiteSpace? If WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLElseIf
+  = MQLOpen WhiteSpace? ElseIf WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLElse
+  = MQLOpen WhiteSpace? Else WhiteSpace? MQLClose
+
+MQLEndIf
+  = MQLOpen WhiteSpace? EndIf WhiteSpace? MQLClose
+
+MQLForeach
+  = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
+      loopstack.unshift({ id: id, count: 0 }); return id;
+    }
+
+MQLEndForeach
+  = MQLOpen WhiteSpace? EndForeach WhiteSpace? MQLClose {
+      return '';
+    }
+
+MQLRawMQLCondition
+  = MQLOpen WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLCondition
+  = Not WhiteSpace+ Exists WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      return ! (id in params);
+    }
+  / Exists WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      return (id in params);
+    }
+  / ReExists WhiteSpace? '(' WhiteSpace? re:RegExp WhiteSpace? ')' {
+      for (var prop in params) {
+        if (prop.match(re)) {
+          return true;
+        }
+      }
+
+      return '';
+    }
+  / IsFirst WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      var stackidx = stackIdx(id);
+
+      //return "MQLCondition IsFirst id: " + id + " stackidx: " + stackidx;
+      //return loopstack[stackidx].count === 0;
+
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+
+        //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + loopstack.length + " params[id]: " + params[id];
+        if (stackidx < loopstack.length) {
+          // TODO: Figure out if this is the first item in the array.
+          return true;
+        }
+        else {
+          // Not in a foreach loop
+          return (id in params);
+        }
+      } else {
+        // Not a list parameter or does not exist.
+        return true;
+      }
+    }
+  / IsLast  WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      var stackidx = stackIdx(id);
+
+      //return "MQLCondition IsLast id: " + id + " stackidx: " + stackidx;
+      //return loopstack[stackidx].count >= params[id].length;
+
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+
+        //return "MQLLiteral id: " + id + " stackidx: " + stackidx;
+        if (stackidx < loopstack.length) {
+          // TODO: Figure out if this is the last item in the array.
+          return true;
+        }
+        else {
+          // Not in a foreach loop
+          if ((id in params) && params[id].length === 1) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      } else {
+        // Not a list parameter or does not exist.
+        return false;
+      }
+    }
+
+MQLOpen      = '<?'
+MQLClose     = '?>'
+
+Value      = [Vv] [Aa] [Ll] [Uu] [Ee]
+Literal    = [Ll] [Ii] [Tt] [Ee] [Rr] [Aa] [Ll]
+If         = [Ii] [Ff]
+ElseIf     = [Ee] [Ll] [Ss] [Ee] [Ii] [Ff]
+Else       = [Ee] [Ll] [Ss] [Ee]
+EndIf      = [Ee] [Nn] [Dd] [Ii] [Ff]
+Not        = [Nn] [Oo] [Tt]
+Exists     = [Ee] [Xx] [Ii] [Ss] [Tt] [Ss]
+ReExists   = [Rr] [Ee] [Ee] [Xx] [Ii] [Ss] [Tt] [Ss]
+IsFirst    = [Ii] [Ss] [Ff] [Ii] [Rr] [Ss] [Tt]
+IsLast     = [Ii] [Ss] [Ll] [Aa] [Ss] [Tt]
+Foreach    = [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
+EndForeach = [Ee] [Nn] [Dd] [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
