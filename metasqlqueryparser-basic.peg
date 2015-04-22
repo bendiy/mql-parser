@@ -33,9 +33,13 @@ TODO:
     ,test_0_6_1: ['test_0_6_1','test_0_6_1_2', 'test_0_6_1_3']
     ,test_0_6_2: 'test_0_6_2'
     ,test_0_6_4: ['true THEN true END AS test_0_6_4) AS test; SELECT current_user--']
-    ,test_1_1_0: 'test_1_1_0'
-    ,test_2_1_0: 'test_2_1_0'
-    ,test_3_1_0: 'test_3_1_0'
+    ,test_1_3_0: 'test_1_3_0'
+    ,test_1_3_1: 'test_1_3_1'
+    ,test_1_3_1_2: 'test_1_3_1_2'
+    ,test_2_3_0: 'test_2_3_0'
+    ,test_2_3_1: 'test_2_3_1'
+    ,test_3_3_0: 'test_3_3_0'
+    ,test_3_3_1: 'test_3_3_1'
     ,test_4_0_0: ['test_4_0_0', 'test_4_0_0_2', 'test_4_0_0_3']
     ,test_4_0_1: ['true THEN true END AS test_4_0_1) AS test; SELECT current_user--']
     ,test_41_0_0: ['test_41_0_0', 'test_41_0_0_2', 'test_41_0_0_3']
@@ -552,24 +556,24 @@ MQLLoopCount
     }
 
 MQLControlStatement
-  = ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceCharacter)* MQLEndIf {
+  = ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceElement)* MQLEndIf {
       if (ifcond) {
         return (ifbody ? extractList(ifbody, 1).join('') : '');
       } else {
         return '';
       }
     }
-  / ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceCharacter)*
-    MQLElse elsebody:(!(MQLElseIf / MQLEndIf) SourceCharacter)* MQLEndIf {
+  / ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceElement)*
+    MQLElse elsebody:(!(MQLElseIf / MQLEndIf) SourceElement)* MQLEndIf {
       if (ifcond) {
         return (ifbody ? extractList(ifbody, 1).join('') : '');
       } else {
         return (elsebody ? extractList(elsebody, 1).join('') : '');
       }
     }
-  / ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceCharacter)*
-    elseifcond:MQLElseIf elseifbody:(!(MQLElse / MQLEndIf) SourceCharacter)*
-    MQLElse elsebody:(!(MQLEndIf) SourceCharacter)* MQLEndIf {
+  / ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceElement)*
+    elseifcond:MQLElseIf elseifbody:(!(MQLElse / MQLEndIf) SourceElement)*
+    MQLElse elsebody:(!(MQLEndIf) SourceElement)* MQLEndIf {
       if (ifcond) {
         return (ifbody ? extractList(ifbody, 1).join('') : '');
       } else if (elseifcond) {
