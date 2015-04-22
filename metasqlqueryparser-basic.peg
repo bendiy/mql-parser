@@ -334,11 +334,30 @@ Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
 /* ----- A.4 Statements ----- */
 
 Statement
-  = MQLValue
-  / MQLLiteral
-  / MQLLoopControl
-  / MQLRawMQLCondition
-  / MQLGeneric
+  = value:MQLValue {
+      //return "MQLValue: " + value;
+      return value;
+    }
+  / literal:MQLLiteral {
+      //return "MQLLiteral: " + literal;
+      return literal;
+    }
+  / loopcontrol:MQLLoopControl {
+      //return "MQLLoopControl: " + loopcontrol;
+      return loopcontrol;
+    }
+  / rawcond:MQLRawMQLCondition {
+      //return "MQLRawMQLCondition: " + rawcond;
+      return rawcond;
+    }
+  / controlstate:MQLControlStatement {
+      //return "MQLControlStatement: " + controlstate;
+      return controlstate;
+    }
+  / generic:MQLGeneric {
+      //return "MQLGeneric: " + generic;
+      return generic;
+    }
 
 MQLGeneric
   = start:MQLOpen body:(!MQLClose SourceCharacter)* end:MQLClose {
@@ -410,58 +429,6 @@ MQLLiteral
       return (wrap + mqloptions.valuesub ? (params[id] ? params[id] : '') : (':' + id) + wrap);
     }
 
-MQLIf
-  = MQLOpen WhiteSpace? If WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
-      return cond;
-    }
-
-MQLElseIf
-  = MQLOpen WhiteSpace? ElseIf WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
-      return cond;
-    }
-
-MQLElse
-  = MQLOpen WhiteSpace? Else WhiteSpace? MQLClose
-
-MQLEndIf
-  = MQLOpen WhiteSpace? EndIf WhiteSpace? MQLClose
-
-MQLForeach
-  = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
-      loopstack.unshift({ id: id, count: 0 }); return id;
-    }
-
-MQLEndForeach
-  = MQLOpen WhiteSpace? EndForeach WhiteSpace? MQLClose {
-      return '';
-    }
-
-MQLLoopControl
-  = MQLOpen WhiteSpace? loop:MQLLoopFunction WhiteSpace? MQLClose {
-      return loop;
-    }
-
-MQLLoopFunction
-  = Continue WhiteSpace? loop:(MQLLoopCount)? {
-      // TODO: Figure out what the passed loop count is.
-      // TODO: Figure out where we are in the loop.
-      // TODO: Continue logic.
-      loop = loop || 1;
-      return '';
-    }
-  / Break WhiteSpace? loop:(MQLLoopCount)? {
-      // TODO: Figure out what the passed loop count is.
-      // TODO: Figure out where we are in the loop.
-      // TODO: Break logic.
-      loop = loop || 1;
-      return '';
-    }
-
-MQLLoopCount
-  = '(' WhiteSpace? loop:DecimalDigit* WhiteSpace? ')' {
-      return loop;
-    }
-
 MQLRawMQLCondition
   = MQLOpen WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
       return cond;
@@ -529,6 +496,86 @@ MQLCondition
       } else {
         // Not a list parameter or does not exist.
         return false;
+      }
+    }
+
+MQLIf
+  = MQLOpen WhiteSpace? If WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLElseIf
+  = MQLOpen WhiteSpace? ElseIf WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLElse
+  = MQLOpen WhiteSpace? Else WhiteSpace? MQLClose
+
+MQLEndIf
+  = MQLOpen WhiteSpace? EndIf WhiteSpace? MQLClose
+
+MQLForeach
+  = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
+      loopstack.unshift({ id: id, count: 0 }); return id;
+    }
+
+MQLEndForeach
+  = MQLOpen WhiteSpace? EndForeach WhiteSpace? MQLClose {
+      return '';
+    }
+
+MQLLoopControl
+  = MQLOpen WhiteSpace? loop:MQLLoopFunction WhiteSpace? MQLClose {
+      return loop;
+    }
+
+MQLLoopFunction
+  = Continue WhiteSpace? loop:(MQLLoopCount)? {
+      // TODO: Figure out what the passed loop count is.
+      // TODO: Figure out where we are in the loop.
+      // TODO: Continue logic.
+      loop = loop || 1;
+      return '';
+    }
+  / Break WhiteSpace? loop:(MQLLoopCount)? {
+      // TODO: Figure out what the passed loop count is.
+      // TODO: Figure out where we are in the loop.
+      // TODO: Break logic.
+      loop = loop || 1;
+      return '';
+    }
+
+MQLLoopCount
+  = '(' WhiteSpace? loop:DecimalDigit* WhiteSpace? ')' {
+      return loop;
+    }
+
+MQLControlStatement
+  = ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceCharacter)* MQLEndIf {
+      if (ifcond) {
+        return (ifbody ? extractList(ifbody, 1).join('') : '');
+      } else {
+        return '';
+      }
+    }
+  / ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceCharacter)*
+    MQLElse elsebody:(!(MQLElseIf / MQLEndIf) SourceCharacter)* MQLEndIf {
+      if (ifcond) {
+        return (ifbody ? extractList(ifbody, 1).join('') : '');
+      } else {
+        return (elsebody ? extractList(elsebody, 1).join('') : '');
+      }
+    }
+  / ifcond:MQLIf ifbody:(!(MQLElse / MQLElseIf / MQLEndIf) SourceCharacter)*
+    elseifcond:MQLElseIf elseifbody:(!(MQLElse / MQLEndIf) SourceCharacter)*
+    MQLElse elsebody:(!(MQLEndIf) SourceCharacter)* MQLEndIf {
+      if (ifcond) {
+        return (ifbody ? extractList(ifbody, 1).join('') : '');
+      } else if (elseifcond) {
+        return (elseifbody ? extractList(elseifbody, 1).join('') : '');
+      } else {
+        return (elsebody ? extractList(elsebody, 1).join('') : '');
       }
     }
 
