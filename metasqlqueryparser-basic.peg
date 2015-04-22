@@ -112,7 +112,7 @@ TODO:
     }
   , mqloptions = {
       valuesub:    true
-      , literalwrap: true
+      , literalwrap: false
     }
   , loopstack = []
   , stackIdx = function(id) {
@@ -460,13 +460,16 @@ MQLCondition
 
       //return "MQLCondition IsFirst id: " + id + " stackidx: " + stackidx;
       //return loopstack[stackidx].count === 0;
+      //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + loopstack.length + " params[id]: " + params[id];
 
       if (Object.prototype.toString.call(params[id]) === '[object Array]') {
-
-        //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + loopstack.length + " params[id]: " + params[id];
         if (stackidx < loopstack.length) {
-          // TODO: Figure out if this is the first item in the array.
-          return true;
+          if (!loopstack[stackidx].isFirst) {
+            loopstack[stackidx].isFirst = true;
+            return true;
+          } else {
+            return false;
+          }
         }
         else {
           // Not in a foreach loop
@@ -487,8 +490,14 @@ MQLCondition
 
         //return "MQLLiteral id: " + id + " stackidx: " + stackidx;
         if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+
           // TODO: Figure out if this is the last item in the array.
-          return true;
+          if (listidx === params[id].length) {
+            return true;
+          } else {
+            return false;
+          }
         }
         else {
           // Not in a foreach loop
@@ -522,7 +531,8 @@ MQLEndIf
 
 MQLForeach
   = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
-      loopstack.unshift({ id: id, count: 0 }); return id;
+      loopstack.unshift({ id: id, count: 0 });
+      return id;
     }
 
 MQLEndForeach
@@ -588,11 +598,35 @@ MQLControlStatement
         }
       }
 
+      // The ifcond and elseifwraper conditions did not match.
       return (elsebody ? extractList(elsebody, 1).join('') : '');
     }
+  / foreachcond:MQLForeach body:(!(MQLEndForeach) SourceElement)* MQLEndForeach {
+      var rebody = (body ? extractList(body, 1).join('') : ''),
+          result = '',
+          find = ":" + foreachcond,
+          re = new RegExp(find, 'g'),
+          stackidx = stackIdx(foreachcond);
 
-MQLOpen      = '<?'
-MQLClose     = '?>'
+// TOOD: SourceElement is already parsed, so any conditionals have already been evaluated.
+// We need to get the raw foreach body and then re-parse on each foreach loop.
+      if (params[foreachcond]) {
+        if (Object.prototype.toString.call(params[foreachcond]) === '[object Array]') {
+          for (var i = 0; i < params[foreachcond].length; i++) {
+            result += rebody.replace(re, params[foreachcond][i]);
+            loopstack[stackidx].count++;
+          }
+
+          loopstack.shift().id;
+          return result;
+        } else {
+          return '';
+        }
+      }
+    }
+
+MQLOpen    = '<?'
+MQLClose   = '?>'
 
 Value      = [Vv] [Aa] [Ll] [Uu] [Ee]
 Literal    = [Ll] [Ii] [Tt] [Ee] [Rr] [Aa] [Ll]
