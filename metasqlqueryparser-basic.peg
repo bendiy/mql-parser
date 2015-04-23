@@ -114,7 +114,7 @@ TODO:
       valuesub:    true
       , literalwrap: false
     }
-  , loopstack = []
+  , loopstack = options.loopstack ? options.loopstack : []
   , stackIdx = function(id) {
       var idx = 1;
       if (loopstack.length > 0) {
@@ -601,19 +601,23 @@ MQLControlStatement
       // The ifcond and elseifwraper conditions did not match.
       return (elsebody ? extractList(elsebody, 1).join('') : '');
     }
-  / foreachcond:MQLForeach body:(!(MQLEndForeach) SourceElement)* MQLEndForeach {
+  / foreachcond:MQLForeach body:(!(MQLEndForeach) SourceCharacter)* MQLEndForeach {
       var rebody = (body ? extractList(body, 1).join('') : ''),
           result = '',
           find = ":" + foreachcond,
           re = new RegExp(find, 'g'),
           stackidx = stackIdx(foreachcond);
 
-// TOOD: SourceElement is already parsed, so any conditionals have already been evaluated.
-// We need to get the raw foreach body and then re-parse on each foreach loop.
       if (params[foreachcond]) {
         if (Object.prototype.toString.call(params[foreachcond]) === '[object Array]') {
           for (var i = 0; i < params[foreachcond].length; i++) {
-            result += rebody.replace(re, params[foreachcond][i]);
+            var recurseOptions = {
+                  loopstack: loopstack
+                };
+
+            // Call the parser recursively on the body.
+            result += parser.parse(rebody, recurseOptions);
+
             loopstack[stackidx].count++;
           }
 
