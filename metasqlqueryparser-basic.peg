@@ -94,6 +94,7 @@ TODO:
     ,test_4_8_0: ['test_4_8_0', 'test_4_8_0_2', 'test_4_8_0_3']
     ,test_44_0_0: ['test_44_0_0', 'test_44_0_0_2']
     ,test_44_0_02: ['test_44_0_02', 'test_44_0_02_2']
+    ,test_44_0_1: ['test_44_0_1', 'test_44_0_1_2']
     ,test_441_0_0: ['test_441_0_0', 'test_441_0_0_2']
     ,test_441_0_02: ['test_441_0_02', 'test_441_0_02_2']
     ,test_442_0_0: ['test_442_0_0', 'test_442_0_0_2']
@@ -385,12 +386,15 @@ MQLValue
           }
 
           if (typeof params[id][0] == 'string') {
-            return ("'" + ':' + id + "'");
+            //return ("'" + ':' + id + "'");
+            return ("'" + params[id][listidx] + "'");
           } else {
-            return (':' + id);
+            //return (':' + id);
+            return params[id][listidx];
           }
         }
         else {
+          // Not in a foreach loop
           if (typeof params[id][0] == 'string') {
             return "'" + params[id][0] + "'";
             //return ("'" + ':' + id + "'");
@@ -423,9 +427,11 @@ MQLLiteral
             listidx = params[id].length - 1;
           }
 
-          return (wrap + ':' + id + wrap);
+          //return (wrap + ':' + id + wrap);
+          return params[id][listidx];
         }
         else {
+          // Not in a foreach loop
           return (wrap + id + wrap);
           //return (wrap + ':' + id + wrap);
         }
@@ -460,12 +466,12 @@ MQLCondition
 
       //return "MQLCondition IsFirst id: " + id + " stackidx: " + stackidx;
       //return loopstack[stackidx].count === 0;
-      //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + loopstack.length + " params[id]: " + params[id];
+      //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + JSON.stringify(loopstack, null, 2) + " params[id]: " + params[id];
 
       if (Object.prototype.toString.call(params[id]) === '[object Array]') {
         if (stackidx < loopstack.length) {
-          if (!loopstack[stackidx].isFirst) {
-            loopstack[stackidx].isFirst = true;
+          listidx = loopstack[stackidx].count;
+          if (listidx === 0) {
             return true;
           } else {
             return false;
@@ -485,15 +491,14 @@ MQLCondition
 
       //return "MQLCondition IsLast id: " + id + " stackidx: " + stackidx;
       //return loopstack[stackidx].count >= params[id].length;
+      //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + JSON.stringify(loopstack, null, 2) + " params[id]: " + params[id];
 
       if (Object.prototype.toString.call(params[id]) === '[object Array]') {
-
-        //return "MQLLiteral id: " + id + " stackidx: " + stackidx;
         if (stackidx < loopstack.length) {
           listidx = loopstack[stackidx].count;
 
           // TODO: Figure out if this is the last item in the array.
-          if (listidx === params[id].length) {
+          if (listidx === (params[id].length - 1)) {
             return true;
           } else {
             return false;
@@ -532,13 +537,17 @@ MQLEndIf
 MQLForeach
   = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
       loopstack.unshift({ id: id, count: 0 });
-      return id;
+
+      return {
+        text: text(),
+        id: id
+      };
     }
 
 MQLEndForeach
   = MQLOpen WhiteSpace? EndForeach WhiteSpace? MQLClose {
-      return '';
-    }
+    return text();
+  }
 
 MQLLoopControl
   = MQLOpen WhiteSpace? loop:MQLLoopFunction WhiteSpace? MQLClose {
@@ -601,12 +610,31 @@ MQLControlStatement
       // The ifcond and elseifwraper conditions did not match.
       return (elsebody ? extractList(elsebody, 1).join('') : '');
     }
-  / foreachcond:MQLForeach body:(!(MQLEndForeach) SourceCharacter)* MQLEndForeach {
-      var rebody = (body ? extractList(body, 1).join('') : ''),
+  / wrapper:ForEachWrapper {
+      var body = wrapper.body,
+          foreachcond = wrapper.foreachstart.id,
+          foreachtext = wrapper.foreachstart.text,
+          extractedbody = '',
           result = '',
-          find = ":" + foreachcond,
-          re = new RegExp(find, 'g'),
-          stackidx = stackIdx(foreachcond);
+          stackidx = stackIdx(foreachcond),
+          extractForeach = function (foreachbody) {
+            var foreachraw = '';
+            for (var k = 0; k < foreachbody.length; k++) {
+              // Index [k][1] is a nested foreach, build it recursively.
+              if (foreachbody[k][1]) {
+                foreachraw += foreachbody[k][1].foreachstart.text;
+                foreachraw += extractForeach(foreachbody[k][1].body);
+                foreachraw += foreachbody[k][1].foreachend;
+              }
+
+              // Index [k][2] is this foreach's body text.
+              foreachraw += foreachbody[k][2];
+            }
+
+            return foreachraw;
+          };
+
+      extractedbody += extractForeach(body);
 
       if (params[foreachcond]) {
         if (Object.prototype.toString.call(params[foreachcond]) === '[object Array]') {
@@ -616,7 +644,7 @@ MQLControlStatement
                 };
 
             // Call the parser recursively on the body.
-            result += parser.parse(rebody, recurseOptions);
+            result += parser.parse(extractedbody, recurseOptions);
 
             loopstack[stackidx].count++;
           }
@@ -628,6 +656,16 @@ MQLControlStatement
         }
       }
     }
+
+ForEachWrapper = foreachstart:MQLForeach body:(!(MQLEndForeach) ForEachWrapper? SourceCharacter)* foreachend:MQLEndForeach {
+  wrapper = {
+    foreachstart: foreachstart,
+    body: body,
+    foreachend: foreachend
+  }
+
+  return wrapper;
+}
 
 MQLOpen    = '<?'
 MQLClose   = '?>'
