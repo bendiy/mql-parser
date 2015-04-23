@@ -30,8 +30,8 @@
  *
  * TODO:
  * - Add legacy mode flag
- * - break - currently fail like the old C++ parser.
- * - continue - currently fail like the old C++ parser.
+ * - break - currently fails like the old C++ parser.
+ * - continue - currently fails like the old C++ parser.
  * - Support parameterized query output.
  */
 
