@@ -1,13 +1,46 @@
-/* Gil Moskowitz, 2014
-   Parse MetaSQL with pegjs - http://pegjs.majda.cz
-
-TODO:
-  break
-  continue
+/**
+ * MetaSQL PEG.js Grammar
+ * ======================
+ *
+ * This file is a PEG.js [1] Grammar for xTuple's MetaSQL language. It is used
+ * to generate a Javascipt parser that can be passed a MetaSQL query string and
+ * an options object containing a params object. The parser returns a SQl query
+ * string with all MetaSQL parsed and replaced with the appropriate params
+ * values.
+ *
+ * MetaSQL[2] is a scripting language developed by xTuple for use by the report
+ * writer. The language is designed to handle dynamic database queries. MetaSQL
+ * statements are embedded within standard SQL—for example, within the Query
+ * Source of a report definition. When a report is run, a parsing engine
+ * interprets the MetaSQL using a list of named parameters. The parsed result
+ * is standard SQL, which in turn is sent to the target database.
+ *
+ * [1] http://pegjs.org/
+ * [2] http://www.xtuple.org/node/270
+ *
+ * Example generated parser usage:
+ *  var options = {
+ *        params: {
+ *          foo: 'bar'
+ *        }
+ *      },
+ *      metaSQL: 'SELECT <? value("foo") ?> AS baz;';
+ *
+ *  parser.parse(metaSQL, options); // returns "SELECT 'bar' AS baz;"
+ *
+ * TODO:
+ * - Add legacy mode flag
+ * - break - currently fail like the old C++ parser.
+ * - continue - currently fail like the old C++ parser.
+ * - Support parameterized query output.
  */
 
+/**
+ * PEG.js grammar initializer
+ */
 {
-  params = {
+  // The default params below are for the MetaSQL test here: https://github.com/xtuple/openrpt/blob/master/MetaSQL/test.mql
+  params = options.params ? options.params : {
     start: true
     ,test_0_1_0: 'test_0_1_0'
     ,test_0_1_2: ['test_0_1_2']
@@ -106,18 +139,10 @@ TODO:
     ,test_444_0_03: ['test_444_0_03', 'test_444_0_01_3']
     ,end: true
   }
-  , queryDef = {
-      group: ""
-      ,name:  ""
-      ,notes: ""
-    }
-  , mqloptions = {
-      valuesub:    true
-      , literalwrap: false
-    }
   , loopstack = options.loopstack ? options.loopstack : []
-  , stackIdx = function(id) {
+  , stackIdx = function (id) {
       var idx = 1;
+
       if (loopstack.length > 0) {
         for (idx = 0; idx < loopstack.length; idx++) {
           if (loopstack[idx].id === id) {
@@ -125,178 +150,38 @@ TODO:
           }
         }
       }
+
       return idx;
     }
-  ;
+  , extractList = function (list, index) {
+      var result = new Array(list.length),
+          i;
 
-  function extractList(list, index) {
-    var result = new Array(list.length), i;
+      for (i = 0; i < list.length; i++) {
+        result[i] = list[i][index];
+      }
 
-    for (i = 0; i < list.length; i++) {
-      result[i] = list[i][index];
+      return result;
     }
-
-    return result;
-  }
-
-  function buildList(first, rest, index) {
-    return [first].concat(extractList(rest, index));
-  }
-
-  function optionalList(value) {
-    return value !== null ? value : [];
-  }
+  , buildList = function (first, rest, index) {
+      return [first].concat(extractList(rest, index));
+    }
+  , optionalList = function (value) {
+      return value !== null ? value : [];
+    }
 }
 
+/**
+ * Grammar startRule
+ */
 Start
   = start:__ metasql:MetaSQL end:__ {
       return start.join('') + metasql + end.join('');
     }
 
-/* ----- A.1 Lexical Grammar ----- */
-
-SourceCharacter
-  = .
-
-WhiteSpace "whitespace"
-  = "\t"
-  / "\v"
-  / "\f"
-  / " "
-  / "\u00A0"
-  / "\uFEFF"
-  / Zs
-
-LineTerminator
-  = line:[\n\r\u2028\u2029] {return line + '&'}
-
-LineTerminatorSequence "end of line"
-  = "\n"
-  / "\r\n"
-  / "\r"
-  / "\u2028"
-  / "\u2029"
-
-
-RegExp
-  = "'" str:([^']*) "'" {
-      return str.join("");
-    }
-  / '"' str:([^"]*) '"' {
-      return str.join("");
-    }
-
-Comment "comment"
-  = MultiLineComment
-  / SingleLineComment
-
-MultiLineComment
-  = start:"/*" body:(!"*/" SourceCharacter)* end:"*/" {
-      return start + (body ? extractList(body, 1).join('') : '') + end;
-    }
-
-MultiLineCommentNoLineTerminator
-  = start:"/*" body:(!("*/" / LineTerminator) SourceCharacter)* end:"*/" {
-      return start + (body ? extractList(body, 1).join('') : '') + end;
-    }
-
-SingleLineComment
-  = start:"--" body:(!LineTerminator SourceCharacter)* {
-      return start + (body ? extractList(body, 1).join('') : '');
-    }
-
-QuotedIdentifier "quoted identifier"
-  = SingleQuotedIdentifier
-  / DoubleQuotedIdentifier
-
-SingleQuotedIdentifier
-  = start:"'" body:SingleStringCharacter* end:"'" {
-    return (body ? body.join('') : '');
-  }
-
-DoubleQuotedIdentifier
-  = start:'"' body:DoubleStringCharacter* end:'"' {
-    return (body ? body.join('') : '');
-  }
-
-QuotedString "quoted string"
-  = SingleQuotedString
-  / DoubleQuotedString
-
-SingleQuotedString
-  = start:"'" body:SingleStringCharacter* end:"'" {
-    return start + (body ? body.join('') : '') + end;
-  }
-
-DoubleQuotedString
-  = start:'"' body:DoubleStringCharacter* end:'"' {
-    return start + (body ? body.join('') : '') + end;
-  }
-
-DecimalDigit
-  = [0-9]
-
-HexDigit
-  = [0-9a-f]i
-
-DoubleStringCharacter
-  = !('"' / "\\" / LineTerminator) SourceCharacter { return text(); }
-  / "\\" sequence:EscapeSequence { return sequence; }
-  / LineContinuation
-
-SingleStringCharacter
-  = !("'" / "\\" / LineTerminator) SourceCharacter { return text(); }
-  / "\\" sequence:EscapeSequence { return sequence; }
-  / LineContinuation
-
-LineContinuation
-  = "\\" LineTerminatorSequence { return ""; }
-
-EscapeSequence
-  = CharacterEscapeSequence
-  / "0" !DecimalDigit { return "\0"; }
-  / HexEscapeSequence
-  / UnicodeEscapeSequence
-
-CharacterEscapeSequence
-  = SingleEscapeCharacter
-  / NonEscapeCharacter
-
-SingleEscapeCharacter
-  = "'"
-  / '"'
-  / "\\"
-  / "b"  { return "\b";   }
-  / "f"  { return "\f";   }
-  / "n"  { return "\n";   }
-  / "r"  { return "\r";   }
-  / "t"  { return "\t";   }
-  / "v"  { return "\x0B"; }   // IE does not recognize "\v".
-
-NonEscapeCharacter
-  = !(EscapeCharacter / LineTerminator) SourceCharacter { return text(); }
-
-EscapeCharacter
-  = SingleEscapeCharacter
-  / DecimalDigit
-  / "x"
-  / "u"
-
-HexEscapeSequence
-  = "x" digits:$(HexDigit HexDigit) {
-      return String.fromCharCode(parseInt(digits, 16));
-    }
-
-UnicodeEscapeSequence
-  = "u" digits:$(HexDigit HexDigit HexDigit HexDigit) {
-      return String.fromCharCode(parseInt(digits, 16));
-    }
-__
-  = (WhiteSpace / LineTerminatorSequence / Comment)*
-
-_
-  = (WhiteSpace / MultiLineCommentNoLineTerminator)*
-
+/**
+ * MetaSQL Grammer
+ */
 MetaSQL
   = sql:SourceElements? {
       return sql
@@ -317,28 +202,17 @@ SourceElement
       return comment;
     }
   / state:Statement {
-      //return "state: " + state;
+      //return "statement: " + state;
       return state;
     }
   / sql:SQLText {
+      //return "sql: " + sql;
       return sql;
     }
 
-SQLText
-  = text:(SQLPattern) {
-      return (text ? text : '');
-    }
-
-SQLPattern
-  = body:SourceCharacter {
-      return (body ? body : '');
-    }
-
-// Separator, Space
-Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
-
-/* ----- A.4 Statements ----- */
-
+/**
+ * MetaSQL Statements
+ */
 Statement
   = value:MQLValue {
       //return "MQLValue: " + value;
@@ -365,11 +239,6 @@ Statement
       return generic;
     }
 
-MQLGeneric
-  = start:MQLOpen body:(!MQLClose SourceCharacter)* end:MQLClose {
-    return start + (body ? extractList(body, 1).join('') : '') + end;
-  }
-
 MQLValue
   = MQLOpen WhiteSpace? Value WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
       var stackidx,
@@ -378,18 +247,16 @@ MQLValue
       if (Object.prototype.toString.call(params[id]) === '[object Array]') {
         stackidx = stackIdx(id);
 
-        //return "MQLValue id: " + id + " stackidx: " + stackidx;
         if (stackidx < loopstack.length) {
           listidx = loopstack[stackidx].count;
+
           if (listidx >= params[id].length) {
             listidx = params[id].length - 1;
           }
 
           if (typeof params[id][0] == 'string') {
-            //return ("'" + ':' + id + "'");
             return ("'" + params[id][listidx] + "'");
           } else {
-            //return (':' + id);
             return params[id][listidx];
           }
         }
@@ -397,182 +264,53 @@ MQLValue
           // Not in a foreach loop
           if (typeof params[id][0] == 'string') {
             return "'" + params[id][0] + "'";
-            //return ("'" + ':' + id + "'");
           } else {
-            return (':' + id);
+            return params[id][0];
           }
         }
       }
 
       if (typeof params[id] == 'string') {
-        return mqloptions.valuesub ? ("'" + (params[id] ? params[id] : 'NULL ') + "'") : ("'" + ':' + id + "'");
+        return ("'" + (params[id] ? params[id] : 'NULL ') + "'");
       } else {
-        return mqloptions.valuesub ? (params[id] ? params[id] : 'NULL ') : (':' + id);
+        return (params[id] ? params[id] : 'NULL ');
       }
     }
 
 MQLLiteral
   = MQLOpen WhiteSpace? Literal WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
-      var wrap = mqloptions.literalwrap ? '"' : '',
-          stackidx,
+      var stackidx,
           listidx;
 
       if (Object.prototype.toString.call(params[id]) === '[object Array]') {
         stackidx = stackIdx(id);
 
-        //return "MQLLiteral id: " + id + " stackidx: " + stackidx;
         if (stackidx < loopstack.length) {
           listidx = loopstack[stackidx].count;
+
           if (listidx >= params[id].length) {
             listidx = params[id].length - 1;
           }
 
-          //return (wrap + ':' + id + wrap);
           return params[id][listidx];
         }
         else {
           // Not in a foreach loop
-          return (wrap + id + wrap);
-          //return (wrap + ':' + id + wrap);
+          return params[id][0];
         }
       }
 
-      return (wrap + mqloptions.valuesub ? (params[id] ? params[id] : '') : (':' + id) + wrap);
+      return (params[id] ? params[id] : '');
     }
-
-MQLRawMQLCondition
-  = MQLOpen WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
-      return cond;
-    }
-
-MQLCondition
-  = Not WhiteSpace+ Exists WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
-      return ! (id in params);
-    }
-  / Exists WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
-      return (id in params);
-    }
-  / ReExists WhiteSpace? '(' WhiteSpace? re:RegExp WhiteSpace? ')' {
-      for (var prop in params) {
-        if (prop.match(re)) {
-          return true;
-        }
-      }
-
-      return '';
-    }
-  / IsFirst WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
-      var stackidx = stackIdx(id);
-
-      //return "MQLCondition IsFirst id: " + id + " stackidx: " + stackidx;
-      //return loopstack[stackidx].count === 0;
-      //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + JSON.stringify(loopstack, null, 2) + " params[id]: " + params[id];
-
-      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
-        if (stackidx < loopstack.length) {
-          listidx = loopstack[stackidx].count;
-          if (listidx === 0) {
-            return true;
-          } else {
-            return false;
-          }
-        }
-        else {
-          // Not in a foreach loop
-          return (id in params);
-        }
-      } else {
-        // Not a list parameter or does not exist.
-        return true;
-      }
-    }
-  / IsLast  WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
-      var stackidx = stackIdx(id);
-
-      //return "MQLCondition IsLast id: " + id + " stackidx: " + stackidx;
-      //return loopstack[stackidx].count >= params[id].length;
-      //return "MQLLiteral id: " + id + " stackidx: " + stackidx + " loopstack: " + JSON.stringify(loopstack, null, 2) + " params[id]: " + params[id];
-
-      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
-        if (stackidx < loopstack.length) {
-          listidx = loopstack[stackidx].count;
-
-          // TODO: Figure out if this is the last item in the array.
-          if (listidx === (params[id].length - 1)) {
-            return true;
-          } else {
-            return false;
-          }
-        }
-        else {
-          // Not in a foreach loop
-          if ((id in params) && params[id].length === 1) {
-            return true;
-          } else {
-            return false;
-          }
-        }
-      } else {
-        // Not a list parameter or does not exist.
-        return false;
-      }
-    }
-
-MQLIf
-  = MQLOpen WhiteSpace? If WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
-      return cond;
-    }
-
-MQLElseIf
-  = MQLOpen WhiteSpace? ElseIf WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
-      return cond;
-    }
-
-MQLElse
-  = MQLOpen WhiteSpace? Else WhiteSpace? MQLClose
-
-MQLEndIf
-  = MQLOpen WhiteSpace? EndIf WhiteSpace? MQLClose
-
-MQLForeach
-  = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
-      loopstack.unshift({ id: id, count: 0 });
-
-      return {
-        text: text(),
-        id: id
-      };
-    }
-
-MQLEndForeach
-  = MQLOpen WhiteSpace? EndForeach WhiteSpace? MQLClose {
-    return text();
-  }
 
 MQLLoopControl
   = MQLOpen WhiteSpace? loop:MQLLoopFunction WhiteSpace? MQLClose {
       return loop;
     }
 
-MQLLoopFunction
-  = Continue WhiteSpace? loop:(MQLLoopCount)? {
-      // TODO: Figure out what the passed loop count is.
-      // TODO: Figure out where we are in the loop.
-      // TODO: Continue logic.
-      loop = loop || 1;
-      return '';
-    }
-  / Break WhiteSpace? loop:(MQLLoopCount)? {
-      // TODO: Figure out what the passed loop count is.
-      // TODO: Figure out where we are in the loop.
-      // TODO: Break logic.
-      loop = loop || 1;
-      return '';
-    }
-
-MQLLoopCount
-  = '(' WhiteSpace? loop:DecimalDigit* WhiteSpace? ')' {
-      return loop;
+MQLRawMQLCondition
+  = MQLOpen WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
     }
 
 MQLControlStatement
@@ -657,19 +395,146 @@ MQLControlStatement
       }
     }
 
-ForEachWrapper = foreachstart:MQLForeach body:(!(MQLEndForeach) ForEachWrapper? SourceCharacter)* foreachend:MQLEndForeach {
-  wrapper = {
-    foreachstart: foreachstart,
-    body: body,
-    foreachend: foreachend
-  }
+MQLGeneric
+  = start:MQLOpen body:(!MQLClose SourceCharacter)* end:MQLClose {
+      return start + (body ? extractList(body, 1).join('') : '') + end;
+    }
 
-  return wrapper;
-}
+/**
+ * MetaSQL Helpers
+ */
+MQLCondition
+  = Not WhiteSpace+ Exists WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      return ! (id in params);
+    }
+  / Exists WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      return (id in params);
+    }
+  / ReExists WhiteSpace? '(' WhiteSpace? re:RegExp WhiteSpace? ')' {
+      for (var prop in params) {
+        if (prop.match(re)) {
+          return true;
+        }
+      }
+
+      return '';
+    }
+  / IsFirst WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      var stackidx = stackIdx(id);
+
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+        if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+
+          // Figure out if this is the first item in the array.
+          if (listidx === 0) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+        else {
+          // Not in a foreach loop
+          return (id in params);
+        }
+      } else {
+        // Not a list parameter or does not exist.
+        return true;
+      }
+    }
+  / IsLast  WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' {
+      var stackidx = stackIdx(id);
+
+      if (Object.prototype.toString.call(params[id]) === '[object Array]') {
+        if (stackidx < loopstack.length) {
+          listidx = loopstack[stackidx].count;
+
+          // Figure out if this is the last item in the array.
+          if (listidx === (params[id].length - 1)) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+        else {
+          // Not in a foreach loop
+          if ((id in params) && params[id].length === 1) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      } else {
+        // Not a list parameter or does not exist.
+        return false;
+      }
+    }
+
+MQLIf
+  = MQLOpen WhiteSpace? If WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLElseIf
+  = MQLOpen WhiteSpace? ElseIf WhiteSpace? cond:MQLCondition WhiteSpace? MQLClose {
+      return cond;
+    }
+
+MQLElse
+  = MQLOpen WhiteSpace? Else WhiteSpace? MQLClose
+
+MQLEndIf
+  = MQLOpen WhiteSpace? EndIf WhiteSpace? MQLClose
+
+MQLForeach
+  = MQLOpen WhiteSpace? Foreach WhiteSpace? '(' WhiteSpace? id:QuotedIdentifier WhiteSpace? ')' WhiteSpace? MQLClose {
+      loopstack.unshift({ id: id, count: 0 });
+
+      return {
+        text: text(),
+        id: id
+      };
+    }
+
+MQLEndForeach
+  = MQLOpen WhiteSpace? EndForeach WhiteSpace? MQLClose {
+      return text();
+    }
+
+ForEachWrapper
+  = foreachstart:MQLForeach body:(!(MQLEndForeach) ForEachWrapper? SourceCharacter)* foreachend:MQLEndForeach {
+      wrapper = {
+        foreachstart: foreachstart,
+        body: body,
+        foreachend: foreachend
+      }
+
+      return wrapper;
+    }
+
+MQLLoopFunction
+  = Continue WhiteSpace? loop:(MQLLoopCount)? {
+      // TODO: Figure out what the passed loop count is.
+      // TODO: Figure out where we are in the loop.
+      // TODO: Continue logic.
+      loop = loop || 1;
+      return '';
+    }
+  / Break WhiteSpace? loop:(MQLLoopCount)? {
+      // TODO: Figure out what the passed loop count is.
+      // TODO: Figure out where we are in the loop.
+      // TODO: Break logic.
+      loop = loop || 1;
+      return '';
+    }
+
+MQLLoopCount
+  = '(' WhiteSpace? loop:DecimalDigit* WhiteSpace? ')' {
+      return loop;
+    }
 
 MQLOpen    = '<?'
 MQLClose   = '?>'
-
 Value      = [Vv] [Aa] [Ll] [Uu] [Ee]
 Literal    = [Ll] [Ii] [Tt] [Ee] [Rr] [Aa] [Ll]
 If         = [Ii] [Ff]
@@ -685,3 +550,163 @@ Foreach    = [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
 EndForeach = [Ee] [Nn] [Dd] [Ff] [Oo] [Rr] [Ee] [Aa] [Cc] [Hh]
 Continue   = [Cc] [Oo] [Nn] [Tt] [Ii] [Nn] [Uu] [Ee]
 Break      = [Bb] [Rr] [Ee] [Aa] [Kk]
+
+/**
+ * Simple SQL Grammer
+ */
+SQLText
+  = text:(SQLPattern) {
+      return (text ? text : '');
+    }
+
+SQLPattern
+  = body:SourceCharacter {
+      return (body ? body : '');
+    }
+
+/**
+ * Generic Grammar
+ */
+SourceCharacter
+  = .
+
+WhiteSpace "whitespace"
+  = "\t"
+  / "\v"
+  / "\f"
+  / " "
+  / "\u00A0"
+  / "\uFEFF"
+  / Zs
+
+LineTerminator
+  = line:[\n\r\u2028\u2029] {return line + '&'}
+
+LineTerminatorSequence "end of line"
+  = "\n"
+  / "\r\n"
+  / "\r"
+  / "\u2028"
+  / "\u2029"
+
+DecimalDigit
+  = [0-9]
+
+HexDigit
+  = [0-9a-f]i
+
+RegExp
+  = "'" str:([^']*) "'" {
+      return str.join("");
+    }
+  / '"' str:([^"]*) '"' {
+      return str.join("");
+    }
+
+Comment "comment"
+  = MultiLineComment
+  / SingleLineComment
+
+MultiLineComment
+  = start:"/*" body:(!"*/" SourceCharacter)* end:"*/" {
+      return start + (body ? extractList(body, 1).join('') : '') + end;
+    }
+
+MultiLineCommentNoLineTerminator
+  = start:"/*" body:(!("*/" / LineTerminator) SourceCharacter)* end:"*/" {
+      return start + (body ? extractList(body, 1).join('') : '') + end;
+    }
+
+SingleLineComment
+  = start:"--" body:(!LineTerminator SourceCharacter)* {
+      return start + (body ? extractList(body, 1).join('') : '');
+    }
+
+QuotedIdentifier "quoted identifier"
+  = SingleQuotedIdentifier
+  / DoubleQuotedIdentifier
+
+SingleQuotedIdentifier
+  = start:"'" body:SingleStringCharacter* end:"'" {
+      return (body ? body.join('') : '');
+    }
+
+DoubleQuotedIdentifier
+  = start:'"' body:DoubleStringCharacter* end:'"' {
+      return (body ? body.join('') : '');
+    }
+
+QuotedString "quoted string"
+  = SingleQuotedString
+  / DoubleQuotedString
+
+SingleQuotedString
+  = start:"'" body:SingleStringCharacter* end:"'" {
+      return start + (body ? body.join('') : '') + end;
+    }
+
+DoubleQuotedString
+  = start:'"' body:DoubleStringCharacter* end:'"' {
+      return start + (body ? body.join('') : '') + end;
+    }
+
+DoubleStringCharacter
+  = !('"' / "\\" / LineTerminator) SourceCharacter { return text(); }
+  / "\\" sequence:EscapeSequence { return sequence; }
+  / LineContinuation
+
+SingleStringCharacter
+  = !("'" / "\\" / LineTerminator) SourceCharacter { return text(); }
+  / "\\" sequence:EscapeSequence { return sequence; }
+  / LineContinuation
+
+LineContinuation
+  = "\\" LineTerminatorSequence { return ""; }
+
+EscapeSequence
+  = CharacterEscapeSequence
+  / "0" !DecimalDigit { return "\0"; }
+  / HexEscapeSequence
+  / UnicodeEscapeSequence
+
+CharacterEscapeSequence
+  = SingleEscapeCharacter
+  / NonEscapeCharacter
+
+SingleEscapeCharacter
+  = "'"
+  / '"'
+  / "\\"
+  / "b"  { return "\b";   }
+  / "f"  { return "\f";   }
+  / "n"  { return "\n";   }
+  / "r"  { return "\r";   }
+  / "t"  { return "\t";   }
+  / "v"  { return "\x0B"; }   // IE does not recognize "\v".
+
+NonEscapeCharacter
+  = !(EscapeCharacter / LineTerminator) SourceCharacter { return text(); }
+
+EscapeCharacter
+  = SingleEscapeCharacter
+  / DecimalDigit
+  / "x"
+  / "u"
+
+HexEscapeSequence
+  = "x" digits:$(HexDigit HexDigit) {
+      return String.fromCharCode(parseInt(digits, 16));
+    }
+
+UnicodeEscapeSequence
+  = "u" digits:$(HexDigit HexDigit HexDigit HexDigit) {
+      return String.fromCharCode(parseInt(digits, 16));
+    }
+__
+  = (WhiteSpace / LineTerminatorSequence / Comment)*
+
+_
+  = (WhiteSpace / MultiLineCommentNoLineTerminator)*
+
+// Separator, Space
+Zs = [\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]
