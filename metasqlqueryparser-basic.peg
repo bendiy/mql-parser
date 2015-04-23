@@ -141,8 +141,8 @@
       ,test_444_0_03: ['test_444_0_03', 'test_444_0_01_3']
       ,end: true
     }
-  , loopstack = options.loopstack ? options.loopstack : []
-  , stackIdx = function (id) {
+  ,loopstack = options.loopstack ? options.loopstack : []
+  ,stackIdx = function (id) {
       var idx = 1;
 
       if (loopstack.length > 0) {
@@ -155,7 +155,7 @@
 
       return idx;
     }
-  , extractList = function (list, index) {
+  ,extractList = function (list, index) {
       var result = new Array(list.length),
           i;
 
@@ -165,10 +165,10 @@
 
       return result;
     }
-  , buildList = function (first, rest, index) {
+  ,buildList = function (first, rest, index) {
       return [first].concat(extractList(rest, index));
     }
-  , optionalList = function (value) {
+  ,optionalList = function (value) {
       return value !== null ? value : [];
     }
 }
@@ -186,7 +186,7 @@ Start
  */
 MetaSQL
   = sql:SourceElements? {
-      return sql
+      return sql;
     }
 
 SourceElements
@@ -359,6 +359,7 @@ MQLControlStatement
           stackidx = stackIdx(foreachcond),
           extractForeach = function (foreachbody) {
             var foreachraw = '';
+
             for (var k = 0; k < foreachbody.length; k++) {
               // Index [k][1] is a nested foreach, build it recursively.
               if (foreachbody[k][1]) {
@@ -505,11 +506,11 @@ MQLEndForeach
 
 ForEachWrapper
   = foreachstart:MQLForeach body:(!(MQLEndForeach) ForEachWrapper? SourceCharacter)* foreachend:MQLEndForeach {
-      wrapper = {
+      var wrapper = {
         foreachstart: foreachstart,
         body: body,
         foreachend: foreachend
-      }
+      };
 
       return wrapper;
     }
@@ -582,7 +583,9 @@ WhiteSpace "whitespace"
   / Zs
 
 LineTerminator
-  = line:[\n\r\u2028\u2029] {return line + '&'}
+  = line:[\n\r\u2028\u2029] {
+      return line + '&';
+    }
 
 LineTerminatorSequence "end of line"
   = "\n"
@@ -653,21 +656,33 @@ DoubleQuotedString
     }
 
 DoubleStringCharacter
-  = !('"' / "\\" / LineTerminator) SourceCharacter { return text(); }
-  / "\\" sequence:EscapeSequence { return sequence; }
+  = !('"' / "\\" / LineTerminator) SourceCharacter {
+      return text();
+    }
+  / "\\" sequence:EscapeSequence {
+      return sequence;
+    }
   / LineContinuation
 
 SingleStringCharacter
-  = !("'" / "\\" / LineTerminator) SourceCharacter { return text(); }
-  / "\\" sequence:EscapeSequence { return sequence; }
+  = !("'" / "\\" / LineTerminator) SourceCharacter {
+      return text();
+    }
+  / "\\" sequence:EscapeSequence {
+      return sequence;
+    }
   / LineContinuation
 
 LineContinuation
-  = "\\" LineTerminatorSequence { return ""; }
+  = "\\" LineTerminatorSequence {
+      return "";
+    }
 
 EscapeSequence
   = CharacterEscapeSequence
-  / "0" !DecimalDigit { return "\0"; }
+  / "0" !DecimalDigit {
+      return "\0";
+    }
   / HexEscapeSequence
   / UnicodeEscapeSequence
 
@@ -679,15 +694,29 @@ SingleEscapeCharacter
   = "'"
   / '"'
   / "\\"
-  / "b"  { return "\b";   }
-  / "f"  { return "\f";   }
-  / "n"  { return "\n";   }
-  / "r"  { return "\r";   }
-  / "t"  { return "\t";   }
-  / "v"  { return "\x0B"; }   // IE does not recognize "\v".
+  / "b"  {
+      return "\b";
+    }
+  / "f"  {
+      return "\f";
+    }
+  / "n"  {
+      return "\n";
+    }
+  / "r"  {
+      return "\r";
+    }
+  / "t"  {
+      return "\t";
+    }
+  / "v"  {
+      return "\x0B"; // IE does not recognize "\v".
+    }
 
 NonEscapeCharacter
-  = !(EscapeCharacter / LineTerminator) SourceCharacter { return text(); }
+  = !(EscapeCharacter / LineTerminator) SourceCharacter {
+      return text();
+    }
 
 EscapeCharacter
   = SingleEscapeCharacter
